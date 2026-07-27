@@ -1568,6 +1568,9 @@ def _empty_session() -> Dict[str, Any]:
         "owner_drinks": [],
         "guests": [],
         "reviews": [],
+        "interactions": [],
+        "decor_events": [],
+        "service_bonus": 0,
         "highlights": [],
     }
 
@@ -1616,6 +1619,7 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "generated_guest_no": 0,
         "last_scene_generated_guest": False,
         "recent_guest_ids": [],
+        "interaction": None,
         "active_guests": [],
         "session": _empty_session(),
         "memories": [],
@@ -1627,6 +1631,12 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "decor_wishlist": [],
         "decor_market": {},
         "decor_no": 0,
+        "decor_event_cooldowns": {},
+        "recent_sensory_patterns": [],
+        "recent_sensory_texts": [],
+        "recent_review_patterns": [],
+        "recent_review_texts": [],
+        "recent_dialogue_modes": [],
         "upgrades": {upgrade_id: 0 for upgrade_id in UPGRADE_DEFS},
     }
 
@@ -1658,14 +1668,24 @@ def _load() -> Dict[str, Any]:
     state.setdefault("generated_guest_no", 0)
     state.setdefault("last_scene_generated_guest", False)
     state.setdefault("recent_guest_ids", [])
+    state.setdefault("interaction", None)
     state.setdefault("session", _empty_session())
     state["session"].setdefault("reviews", [])
+    state["session"].setdefault("interactions", [])
+    state["session"].setdefault("decor_events", [])
+    state["session"].setdefault("service_bonus", 0)
     state.setdefault("play_mode", "autonomous")
     state.setdefault("post_bar_turns", 0)
     state.setdefault("bar_concept", "")
     state.setdefault("decor_wishlist", [])
     state.setdefault("decor_market", {})
     state.setdefault("decor_no", 0)
+    state.setdefault("decor_event_cooldowns", {})
+    state.setdefault("recent_sensory_patterns", [])
+    state.setdefault("recent_sensory_texts", [])
+    state.setdefault("recent_review_patterns", [])
+    state.setdefault("recent_review_texts", [])
+    state.setdefault("recent_dialogue_modes", [])
     state.setdefault("upgrades", {})
     for upgrade_id in UPGRADE_DEFS:
         state["upgrades"].setdefault(upgrade_id, 0)
@@ -2007,8 +2027,15 @@ def _guest_record(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]
             "known_dislikes": [],
             "orders": [],
             "memories": [],
+            "story_stage": 0,
+            "story_notes": [],
+            "story_last_unlock": -999,
         }
-    return state["records"][card["id"]]
+    record = state["records"][card["id"]]
+    record.setdefault("story_stage", 0)
+    record.setdefault("story_notes", [])
+    record.setdefault("story_last_unlock", -999)
+    return record
 
 
 def _guest_weight(state: Dict[str, Any], card: Dict[str, Any]) -> float:
@@ -2150,7 +2177,402 @@ def _select_scene_lead(state: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     ), False
 
 
+_INTERACTION_KINDS = {
+    "debate": {
+        "name": "价值争论",
+        "topics": ["自由是否必须承担后果", "好意能否越过他人的选择", "规则失效后谁来定义正义"],
+        "delta": (6, 18),
+    },
+    "recognition": {
+        "name": "跨世界共鸣",
+        "topics": ["故乡已经消失以后如何继续生活", "被别人当成符号是什么感觉", "漫长旅途中真正留下的人"],
+        "delta": (-10, 8),
+    },
+    "rivalry": {
+        "name": "危险试探",
+        "topics": ["彼此的能力与底线", "谁更擅长识破谎言", "一段来历不明的旧账"],
+        "delta": (10, 22),
+    },
+    "story_exchange": {
+        "name": "交换故事",
+        "topics": ["第一次离开故乡的夜晚", "至今仍没有原谅的人", "做过却不愿被称作英雄的事"],
+        "delta": (-8, 9),
+    },
+    "misunderstanding": {
+        "name": "误会升级",
+        "topics": ["一句在两个世界含义相反的话", "被错认的身份与立场", "某件装饰引出的历史误读"],
+        "delta": (8, 20),
+    },
+}
+
+
+def _interaction_cards(
+    state: Dict[str, Any], interaction: Dict[str, Any]
+) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    by_id = {card["id"]: card for card in _all_guest_cards(state)}
+    return by_id[interaction["participants"][0]], by_id[interaction["participants"][1]]
+
+
+def _interaction_directive(state: Dict[str, Any], prefix: str = "") -> str:
+    interaction = state.get("interaction")
+    if not interaction:
+        return "当前没有两位来客正在互动。"
+    first, second = _interaction_cards(state, interaction)
+    stage = (
+        "即将失控"
+        if interaction["tension"] >= 80
+        else "针锋相对"
+        if interaction["tension"] >= 58
+        else "明显分歧"
+        if interaction["tension"] >= 35
+        else "仍可平静交谈"
+    )
+    return (
+        "%s【AI内部双人演绎卡｜不得原样展示给用户】\n"
+        "互动：%s｜话题：%s｜第%d轮｜张力%d/100（%s）\n"
+        "角色A：%s｜%s｜立场%s\n角色B：%s｜%s｜立场%s\n"
+        "必须生成两人真正互相听见后的连续动作与对话：后一人的话要回应前一人的具体内容，"
+        "不能各说一段独白。允许打断、沉默、讽刺、理解、道歉或拒绝；严格遵守各自史实或原作。"
+        "不要替老板决定是否介入。结尾留下一个自然可干预的现场，而不是菜单式提问。"
+        % (
+            prefix,
+            interaction["kind_name"],
+            interaction["topic"],
+            interaction["turns"],
+            interaction["tension"],
+            stage,
+            first["name"],
+            first["temperament"],
+            first["ethos"],
+            second["name"],
+            second["temperament"],
+            second["ethos"],
+        )
+    )
+
+
+def _start_interaction(
+    state: Dict[str, Any], first: Dict[str, Any], second: Dict[str, Any]
+) -> str:
+    if first["ethos"] != second["ethos"]:
+        kind = _choice(state, ["debate", "rivalry", "misunderstanding"])
+        tension = 38 + int(_rand(state) * 25)
+    else:
+        kind = _choice(state, ["recognition", "story_exchange", "debate"])
+        tension = 18 + int(_rand(state) * 24)
+    definition = _INTERACTION_KINDS[kind]
+    state["interaction"] = {
+        "participants": [first["id"], second["id"]],
+        "kind": kind,
+        "kind_name": definition["name"],
+        "topic": _choice(state, definition["topics"]),
+        "tension": tension,
+        "turns": 0,
+        "resolved": False,
+        "history": [],
+    }
+    return _interaction_directive(
+        state,
+        "两位来客已经注意到彼此，互动不是背景装饰。\n",
+    )
+
+
+def _resolve_interaction(
+    state: Dict[str, Any], summary: str, trust_delta: int = 0
+) -> None:
+    interaction = state.get("interaction")
+    if not interaction:
+        return
+    interaction["resolved"] = True
+    interaction["history"].append(summary)
+    for guest_id in interaction["participants"]:
+        record = state["records"].get(guest_id)
+        if record:
+            record["trust"] = int(
+                _clamp(int(record.get("trust", 0)) + trust_delta, -20, 50)
+            )
+            record["memories"].append(summary)
+    state["session"]["interactions"].append(summary)
+    state["session"]["highlights"].append(summary)
+
+
+def _advance_interaction(state: Dict[str, Any]) -> str:
+    interaction = state.get("interaction")
+    if not interaction:
+        return "当前没有需要继续观察的来客互动。"
+    if interaction.get("resolved"):
+        return "这段互动已经告一段落。再次 next 会进入下一场景。"
+    interaction["turns"] += 1
+    low, high = _INTERACTION_KINDS[interaction["kind"]]["delta"]
+    delta = low + int(_rand(state) * (high - low + 1))
+    if state["upgrades"].get("quiet_booth", 0):
+        delta -= 3
+    interaction["tension"] = int(
+        _clamp(interaction["tension"] + delta, 0, 100)
+    )
+    if interaction["tension"] >= 88:
+        interaction["history"].append("冲突已经逼近肢体失控")
+        return _interaction_directive(
+            state,
+            "⚠️ 杯子被碰响，冲突已经逼近失控。老板可以 intervene mediate、"
+            "intervene separate、intervene join 或 intervene story。\n",
+        )
+    if interaction["turns"] >= 4 or interaction["tension"] <= 12:
+        first, second = _interaction_cards(state, interaction)
+        summary = "第%d次营业，%s与%s围绕“%s”的互动暂时收束" % (
+            state["visit"],
+            first["name"],
+            second["name"],
+            interaction["topic"],
+        )
+        _resolve_interaction(state, summary, 1 if interaction["tension"] < 35 else 0)
+        return (
+            summary
+            + "。他们没有因此变成朋友，也没有抹去分歧；这段经历已经写入双方记忆。"
+        )
+    return _interaction_directive(state, "两人的交流继续向前推进。\n")
+
+
+def _cmd_intervene(state: Dict[str, Any], args: List[str]) -> str:
+    interaction = state.get("interaction")
+    if not interaction or interaction.get("resolved"):
+        return "现在没有一段仍在进行的双人互动可以干预。"
+    if not args:
+        return "用法：intervene <listen|join|mediate|separate|story|challenge> [你说的话]"
+    action = args[0].lower()
+    words = " ".join(args[1:]).strip()
+    first, second = _interaction_cards(state, interaction)
+    if action == "listen":
+        return _advance_interaction(state)
+    if action == "join":
+        interaction["tension"] = int(_clamp(interaction["tension"] - 4))
+        prefix = "老板加入话题%s。两位来客必须分别回应老板，也继续回应彼此。\n" % (
+            ("：“" + words + "”") if words else ""
+        )
+    elif action == "mediate":
+        interaction["tension"] = int(_clamp(interaction["tension"] - 20))
+        prefix = "老板尝试调停%s。调停可以被接受，也可以被角色有理由地拒绝。\n" % (
+            ("：“" + words + "”") if words else ""
+        )
+    elif action == "story":
+        interaction["tension"] = int(_clamp(interaction["tension"] - 13))
+        prefix = "老板讲了一个故事%s。两位来客要按自身经历产生不同反应。\n" % (
+            ("：“" + words + "”") if words else ""
+        )
+    elif action == "challenge":
+        interaction["tension"] = int(_clamp(interaction["tension"] + 14))
+        prefix = "老板公开质疑了两人的说法%s，现场张力上升。\n" % (
+            ("：“" + words + "”") if words else ""
+        )
+    elif action == "separate":
+        summary = "第%d次营业，老板在%s与%s的冲突中强行拉开双方" % (
+            state["visit"],
+            first["name"],
+            second["name"],
+        )
+        _resolve_interaction(state, summary, -1)
+        return (
+            summary
+            + "。冲突停止，但两人是否感激或不满，要依据各自性格继续演绎。"
+        )
+    else:
+        return "干预方式必须是 listen、join、mediate、separate、story 或 challenge。"
+    interaction["turns"] += 1
+    interaction["history"].append(prefix.strip())
+    if interaction["tension"] <= 10:
+        summary = "第%d次营业，老板的介入让%s与%s暂时停下争执" % (
+            state["visit"],
+            first["name"],
+            second["name"],
+        )
+        _resolve_interaction(state, summary, 1)
+        return summary + "。双方记住了老板这次介入。"
+    return _interaction_directive(state, prefix)
+
+
+_STORY_STAGE_NAMES = {
+    1: "旧事露出缺口",
+    2: "旧事产生现实后果",
+    3: "角色必须作出选择",
+    4: "选择留下长期后果",
+}
+
+
+def _story_target_stage(record: Dict[str, Any]) -> int:
+    visits = int(record.get("visits", 0))
+    trust = int(record.get("trust", 0))
+    if visits >= 7 and trust >= 12:
+        return 4
+    if visits >= 5 and trust >= 7:
+        return 3
+    if visits >= 3 and trust >= 3:
+        return 2
+    if visits >= 2:
+        return 1
+    return 0
+
+
+def _maybe_unlock_story(
+    state: Dict[str, Any], card: Dict[str, Any], record: Dict[str, Any]
+) -> str:
+    current = int(record.get("story_stage", 0))
+    target = _story_target_stage(record)
+    if target <= current or int(record.get("story_last_unlock", -999)) == state["visit"]:
+        return ""
+    stage = current + 1
+    record["story_stage"] = stage
+    record["story_last_unlock"] = state["visit"]
+    notes = "；".join(record.get("story_notes", [])[-3:]) or "尚无已落档的个人剧情"
+    return (
+        "【AI内部常客故事卡｜不得原样展示给用户】\n"
+        "%s的常客故事进入第%d阶段“%s”。既有剧情：%s。\n"
+        "本次必须依据其史实、原作或原创背景，生成一段与旧记忆连续的新事件；"
+        "事件应改变一个关系、判断、承诺或处境，不能只是重复讲身世。"
+        "故事推进取决于来访和信任，绝不能要求再买一杯酒才能继续。"
+        "演绎完成后，内部调用 story_note %s \"本次变化的简短摘要\" 保存结果。"
+        % (
+            card["name"],
+            stage,
+            _STORY_STAGE_NAMES[stage],
+            notes,
+            card["id"],
+        )
+    )
+
+
+def _cmd_story_note(state: Dict[str, Any], args: List[str]) -> str:
+    if len(args) < 2 or args[0] not in state["records"]:
+        return '用法：story_note <客人ID> "本次个人故事发生了什么"'
+    guest_id = args[0]
+    summary = " ".join(args[1:]).strip()
+    if not summary or len(summary) > 500:
+        return "故事摘要应为1～500字。"
+    record = state["records"][guest_id]
+    card = record["card"]
+    note = "第%d次营业｜阶段%d：%s" % (
+        state["visit"],
+        int(record.get("story_stage", 0)),
+        summary,
+    )
+    record.setdefault("story_notes", []).append(note)
+    record["story_notes"] = record["story_notes"][-20:]
+    record["memories"].append(note)
+    state["session"]["highlights"].append("%s的常客故事有了新进展" % card["name"])
+    return "已写入%s的个人故事：%s" % (card["name"], summary)
+
+
+def _decor_event_tags(definition: Dict[str, Any]) -> List[str]:
+    text = "%s %s %s" % (
+        definition.get("name", ""),
+        definition.get("desc", ""),
+        definition.get("origin", ""),
+    )
+    tags = []
+    mappings = [
+        ("music", ("音乐", "歌曲", "点唱", "钢琴", "音响")),
+        ("memory", ("记忆", "旧事", "照片", "放映", "投影")),
+        ("portal", ("门", "裂隙", "星舰", "时间线", "四维")),
+        ("comfort", ("沙发", "地毯", "壁炉", "灯", "包厢", "座")),
+        ("performance", ("舞台", "舞池", "麦克风")),
+        ("nature", ("花园", "水族", "绿植", "鱼")),
+    ]
+    for tag, words in mappings:
+        if any(word in text for word in words):
+            tags.append(tag)
+    return tags or ["ambience"]
+
+
+def _maybe_decor_event(
+    state: Dict[str, Any], chosen: Sequence[Dict[str, Any]]
+) -> str:
+    owned = [
+        (decor_id, definition)
+        for decor_id in state.get("decorations", {})
+        for definition in [_decor_definition(state, decor_id)]
+        if definition
+        and int(state.get("decor_event_cooldowns", {}).get(decor_id, -1))
+        < state["visit"]
+    ]
+    if not owned or _rand(state) >= min(0.38, 0.12 + len(owned) * 0.025):
+        return ""
+    decor_id, definition = _choice(state, owned)
+    event_tag = _choice(state, definition.get("event_tags") or _decor_event_tags(definition))
+    guest = _choice(state, list(chosen))
+    record = state["records"][guest["id"]]
+    if event_tag == "music":
+        record["trust"] = int(_clamp(record["trust"] + 1, -20, 50))
+        change = "关系+1"
+        seed = (
+            "%s忽然播放出一段来自%s故乡的旋律。%s认出了其中一小节，"
+            "但这首歌在其世界里可能关联庆典、战争、爱人或葬礼。"
+            % (definition["name"], guest["origin"], guest["name"])
+        )
+    elif event_tag == "memory":
+        record["trust"] = int(_clamp(record["trust"] + 1, -20, 50))
+        change = "关系+1，并获得一次记忆话题"
+        seed = (
+            "%s没有展示完整往事，只映出%s记忆里的一个细节。"
+            "必须依据人物原作或背景解释这个细节为何重要。"
+            % (definition["name"], guest["name"])
+        )
+    elif event_tag == "portal":
+        state["session"]["service_bonus"] = int(
+            state["session"].get("service_bonus", 0)
+        ) + 2
+        change = "本次营业后续满意度+2"
+        seed = (
+            "%s短暂连接到%s来时的世界，带回一种光线、气味或天气，"
+            "改变了接下来几杯酒的现场感。"
+            % (definition["name"], guest["name"])
+        )
+    elif event_tag == "comfort":
+        state["session"]["service_bonus"] = int(
+            state["session"].get("service_bonus", 0)
+        ) + 3
+        change = "本次营业后续满意度+3"
+        seed = "%s让%s放松下来，对方比原计划多停留了一会儿。" % (
+            definition["name"],
+            guest["name"],
+        )
+    elif event_tag == "performance":
+        if state.get("interaction") and not state["interaction"].get("resolved"):
+            state["interaction"]["tension"] = int(
+                _clamp(state["interaction"]["tension"] + 8)
+            )
+            change = "当前互动张力+8"
+        else:
+            state["reputation"] = int(_clamp(state["reputation"] + 1))
+            change = "声誉+1"
+        seed = "%s自行启动，把原本私人的情绪推到了所有人都能看见的地方。" % definition[
+            "name"
+        ]
+    elif event_tag == "nature":
+        state["session"]["service_bonus"] = int(
+            state["session"].get("service_bonus", 0)
+        ) + 2
+        change = "本次营业后续满意度+2"
+        seed = "%s对%s产生了不符合普通自然规律的回应。" % (
+            definition["name"],
+            guest["name"],
+        )
+    else:
+        state["reputation"] = int(_clamp(state["reputation"] + 1))
+        change = "声誉+1"
+        seed = "%s第一次真正成为今晚故事的一部分，而不只是背景。" % definition["name"]
+    state["decor_event_cooldowns"][decor_id] = state["visit"] + 2
+    event = "%s｜效果：%s" % (seed, change)
+    state["session"]["decor_events"].append(event)
+    state["session"]["highlights"].append("%s触发事件" % definition["name"])
+    return (
+        "✨ 装修事件：%s\n"
+        "【AI内部事件演绎卡｜不得原样展示】请把事件写成来客可见、可回应的现场，"
+        "保持物品来源规则与人物经历一致；不要只报告数值。"
+        % event
+    )
+
+
 def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
+    state["interaction"] = None
     state["vendor"] = None
     vendor_chance = 0.18 + state["upgrades"].get("portal", 0) * 0.025
     if _rand(state) < vendor_chance:
@@ -2223,17 +2645,16 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
                 "↩ 回头客：这是%s第%d次来。对方仍记得：%s"
                 % (card["name"], record["visits"], remembered)
             )
+            story_beat = _maybe_unlock_story(state, card, record)
+            if story_beat:
+                lines.append(story_beat)
     state["recent_guest_ids"].extend(card["id"] for card in chosen)
     state["recent_guest_ids"] = state["recent_guest_ids"][-8:]
     if len(chosen) == 2:
-        first, second = chosen
-        if first["ethos"] != second["ethos"]:
-            lines.append(
-                "⚡ 两人看见彼此后，空气明显停了一拍。%s与%s的立场并不天然相容。"
-                % (first["name"], second["name"])
-            )
-        else:
-            lines.append("两位来客意外地没有排斥彼此，只是都在等老板先开口。")
+        lines.append(_start_interaction(state, chosen[0], chosen[1]))
+    decor_event = _maybe_decor_event(state, chosen)
+    if decor_event:
+        lines.append(decor_event)
     return "\n\n".join(lines)
 
 
@@ -2260,6 +2681,14 @@ def _find_source(state: Dict[str, Any], drink_id: str) -> Optional[Dict[str, Any
     recipe = _all_recipes(state).get(drink_id)
     if not recipe:
         return None
+    preferred_id = recipe.get("preferred_product_id")
+    preferred = inventory.get(preferred_id) if preferred_id else None
+    if (
+        preferred
+        and preferred.get("kind") == recipe["kind"]
+        and int(preferred.get("remaining", 0)) > 0
+    ):
+        return preferred
     choices = [
         item
         for item in inventory.values()
@@ -2289,6 +2718,7 @@ def _drink_profile(state: Dict[str, Any], drink_id: str) -> Optional[Dict[str, A
         "tags": list(dict.fromkeys(recipe["tags"] + source["tags"][:1])),
         "units": round(float(source["units"]) * recipe["unit_factor"], 2),
         "source": source,
+        "recipe": recipe,
     }
 
 
@@ -2376,31 +2806,136 @@ def _taste_sentences(tags: Sequence[str]) -> str:
     return "；".join(phrases[:3])
 
 
-def _sensory_arc(profile: Dict[str, Any]) -> str:
+_TASTE_VARIANTS: Dict[str, List[str]] = {
+    "sweet": ["柔和的甜意先贴住舌面", "甜味像融开的糖壳慢慢铺开", "一层圆润甜香先碰到舌尖"],
+    "sour": ["明亮的酸味迅速收拢口腔", "酸意从舌侧亮起来，像切开的青果", "一线清酸把其他味道提得更醒"],
+    "bitter": ["干净的苦味压住表面的甜", "苦意从舌根升起，停得克制", "微苦像深色阴影一样压在后段"],
+    "dry": ["收口很干，几乎不留黏腻", "水分感迅速退去，留下利落边缘", "干爽感把口腔收得很紧"],
+    "smoky": ["烟与微焦的气味从鼻腔后面升起", "像熄灭木柴般的烟香贴近上颚", "一缕焦烟绕过舌面才慢慢散开"],
+    "herbal": ["草叶与药草气息在舌后展开", "揉碎香草般的青气浮上来", "草本的凉与微涩交替出现"],
+    "fruity": ["成熟果肉的香气变得饱满", "果皮和果汁的明暗层次同时打开", "新鲜果香先跳出来，随后变得柔软"],
+    "floral": ["花香轻轻抬高了鼻腔里的气味", "像刚折开的花瓣一样有一瞬冷香", "花气并不甜，反而贴着呼吸往上走"],
+    "spiced": ["辛香从舌尖向喉咙扩散", "香料的热度细碎地跳出来", "胡椒与暖香在中段突然变得清楚"],
+    "woody": ["木桶与干燥木屑的气息压住底部", "旧木柜般的温沉气味留在后段", "木香把酒体撑出安静的骨架"],
+    "crisp": ["清冽感像冷光一样掠过口腔", "入口干净得像碰到薄冰", "清爽的锐度让味觉短暂醒了一下"],
+    "rich": ["厚实酒体缓慢覆盖舌面", "味道沉而饱满，几乎有重量", "醇厚感一层层叠起来，不急着退"],
+}
+
+
+def _fresh_choice(
+    state: Dict[str, Any], options: Sequence[str], bucket: str, prefix: str
+) -> str:
+    recent = state.setdefault(bucket, [])
+    candidates = [
+        (index, value)
+        for index, value in enumerate(options)
+        if "%s:%d" % (prefix, index) not in recent[-10:]
+    ]
+    if not candidates:
+        candidates = list(enumerate(options))
+    index, value = _choice(state, candidates)
+    recent.append("%s:%d" % (prefix, index))
+    state[bucket] = recent[-24:]
+    return value
+
+
+def _taste_phrase(state: Dict[str, Any], tag: str, position: str) -> str:
+    options = _TASTE_VARIANTS.get(
+        tag, [TASTE_PHRASES.get(tag, "味道暂时很难归类")]
+    )
+    return _fresh_choice(
+        state, options, "recent_sensory_patterns", "%s:%s" % (position, tag)
+    )
+
+
+def _sensory_arc(
+    state: Dict[str, Any], profile: Dict[str, Any], perspective: str = "guest"
+) -> str:
     tags = list(profile["tags"])
-    first = TASTE_PHRASES.get(tags[0], "酒液先在舌面停住")
+    first = _taste_phrase(state, tags[0], "first") if tags else "酒液先在舌面停住"
     middle = (
-        TASTE_PHRASES.get(tags[1], "味道在中段缓慢展开")
+        _taste_phrase(state, tags[1], "middle")
         if len(tags) > 1
-        else "味道在中段缓慢展开"
+        else _fresh_choice(
+            state,
+            ["酒体在中段缓慢展开", "味道停顿一下才继续变化", "中段没有急着表态"],
+            "recent_sensory_patterns",
+            "middle:neutral",
+        )
     )
     finish = (
-        TASTE_PHRASES.get(tags[2], "余味干净地退下去")
+        _taste_phrase(state, tags[2], "finish")
         if len(tags) > 2
-        else "余味干净地退下去"
+        else _fresh_choice(
+            state,
+            ["余味干净地退下去", "杯子离唇后仍留着一线气味", "最后只剩轻微回甘"],
+            "recent_sensory_patterns",
+            "finish:neutral",
+        )
     )
     if profile["units"] >= 1.45:
-        body = "咽下去时喉咙被热意擦过，随后沉进胸口"
+        body_options = [
+            "咽下去时喉咙被热意擦过，随后沉进胸口",
+            "酒精的热度沿食道落下，呼吸跟着重了一瞬",
+            "吞咽之后胸口很快升温，力量感比香气来得晚",
+        ]
     elif profile["units"] >= 1.0:
-        body = "咽下去以后，温度从喉咙后面慢慢浮起来"
+        body_options = [
+            "咽下去以后，温度从喉咙后面慢慢浮起来",
+            "一阵不尖锐的暖意沿着胸骨散开",
+            "酒液落下后，耳后和脸侧逐渐有了温度",
+        ]
     else:
-        body = "酒液落下去很轻，热意来得缓慢"
-    return "入口：%s。中段：%s。余味：%s。身体：%s。" % (
-        first,
-        middle,
-        finish,
-        body,
+        body_options = [
+            "酒液落下去很轻，热意来得缓慢",
+            "身体几乎没有被推一下，只留下很淡的暖",
+            "吞咽很轻，酒意暂时还在味觉后面",
+        ]
+    body = _fresh_choice(
+        state,
+        body_options,
+        "recent_sensory_patterns",
+        "body:%s:%s" % (perspective, int(profile["units"] * 10)),
     )
+    formats = [
+        "入口先是%s；到了中段，%s。杯子离开以后，%s。%s。",
+        "%s。紧接着%s，而最后留下的是：%s。身体比味觉晚一步——%s。",
+        "第一印象：%s。\n随后：%s。\n收尾：%s。\n身体反应：%s。",
+        "酒碰到舌面时，%s；再含一会儿，%s；咽下后，%s，同时%s。",
+    ]
+    template = _fresh_choice(
+        state,
+        formats,
+        "recent_sensory_patterns",
+        "format:%s" % perspective,
+    )
+    afterimage_options = [
+        "再呼吸一次，香气比第一口更靠近鼻腔。",
+        "杯壁的温度改变后，甜与苦的位置也跟着挪动。",
+        "第二次回味没有复制第一口，反而露出更安静的一层。",
+        "冰融开一点后，原本藏着的气味才肯出现。",
+        "它最清楚的部分不是入口，而是吞咽后的几秒钟。",
+        "杯子放下以后，舌侧仍留着一小段没有结束的味道。",
+        "这一口的重心随着呼吸移动，并没有停在同一个位置。",
+    ]
+    afterimage = _fresh_choice(
+        state,
+        afterimage_options,
+        "recent_sensory_patterns",
+        "afterimage:%s" % perspective,
+    )
+    base_text = template % (first, middle, finish, body)
+    recent_texts = state.setdefault("recent_sensory_texts", [])
+    text = base_text + afterimage
+    if text in recent_texts[-20:]:
+        for alternative in afterimage_options:
+            candidate = base_text + alternative
+            if candidate not in recent_texts[-20:]:
+                text = candidate
+                break
+    recent_texts.append(text)
+    state["recent_sensory_texts"] = recent_texts[-24:]
+    return text
 
 
 def _owner_tasting(state: Dict[str, Any], profile: Dict[str, Any]) -> str:
@@ -2408,11 +2943,40 @@ def _owner_tasting(state: Dict[str, Any], profile: Dict[str, Any]) -> str:
     liked = tags & set(state["owner_likes"])
     disliked = tags & set(state["owner_dislikes"])
     if disliked:
-        verdict = "这不是我本能会选的方向，%s让我有些抵触" % _tag_text(sorted(disliked))
+        verdict_options = [
+            "这不是我本能会选的方向，%s让我有些抵触",
+            "我能理解它的结构，但%s正好碰到我的回避区",
+            "%s让我下意识想把杯子放远一点",
+        ]
+        verdict = _fresh_choice(
+            state,
+            verdict_options,
+            "recent_sensory_patterns",
+            "owner:dislike",
+        ) % _tag_text(sorted(disliked))
     elif liked:
-        verdict = "其中的%s正好踩中我的偏好，我愿意再喝一口" % _tag_text(sorted(liked))
+        verdict_options = [
+            "其中的%s正好踩中我的偏好，我愿意再喝一口",
+            "%s一出来，我就知道这杯会被我记住",
+            "我原本还在判断，%s出现以后身体先替我选了",
+        ]
+        verdict = _fresh_choice(
+            state,
+            verdict_options,
+            "recent_sensory_patterns",
+            "owner:like",
+        ) % _tag_text(sorted(liked))
     else:
-        verdict = "它没有直接迎合我的旧偏好，但值得我把这个味道记下来"
+        verdict = _fresh_choice(
+            state,
+            [
+                "它没有迎合我的旧偏好，但值得把这个味道记下来",
+                "这不是我会主动点的酒，却意外打开了一条新方向",
+                "我暂时说不上喜欢，却不想立刻否定它",
+            ],
+            "recent_sensory_patterns",
+            "owner:neutral",
+        )
     score = _intox(state)
     if score >= 42:
         state_feeling = "这口酒落下去以后，我能感觉到反应慢了半拍，情绪却更靠近嘴边"
@@ -2424,7 +2988,7 @@ def _owner_tasting(state: Dict[str, Any], profile: Dict[str, Any]) -> str:
         state_feeling = "醉意还没有真正追上来，我仍能清楚分辨每一层味道"
     return "我端起%s，自己喝了一口。\n%s\n我的感觉：%s；%s。" % (
         profile["name"],
-        _sensory_arc(profile),
+        _sensory_arc(state, profile, "owner"),
         verdict,
         state_feeling,
     )
@@ -2433,21 +2997,69 @@ def _owner_tasting(state: Dict[str, Any], profile: Dict[str, Any]) -> str:
 def _npc_reaction(
     state: Dict[str, Any], card: Dict[str, Any], profile: Dict[str, Any], score: int
 ) -> str:
-    del state
-    sensory = _sensory_arc(profile)
+    sensory = _sensory_arc(state, profile, "guest")
     if score >= 88:
-        action = "%s喝到第二口时没有立刻放杯，肩膀明显松了一点。" % card["name"]
-        words = "“很好。你不是只听见了酒名，你听懂了我今晚想要什么。”"
+        actions = [
+            "喝到第二口时没有立刻放杯，肩膀明显松了一点",
+            "先看了看杯中颜色，又把剩下的香气慢慢吸进去",
+            "指尖在杯沿停住，像是终于确认了某件事",
+            "原本紧绷的表情松开，主动把杯子往自己面前挪近",
+        ]
+        words = [
+            "“这杯听懂了我今晚真正想要的东西。”",
+            "“别急着改配方。现在这样正好。”",
+            "“我原本没准备夸你，但这杯值得。”",
+        ]
     elif score >= 72:
-        action = "%s让酒液在口中多停了一会儿，又低头闻了闻杯口。" % card["name"]
-        words = "“和我预想的不完全一样，但这个转向有道理。我愿意把它喝完。”"
+        actions = [
+            "让酒液在口中多停了一会儿，又低头闻了闻杯口",
+            "没有立刻评价，只用舌尖重新找了一遍中段的味道",
+            "轻轻转杯，让香气再回来一次",
+        ]
+        words = [
+            "“和预想不完全一样，但这个转向有道理。”",
+            "“有一处出乎意料，不过我愿意把它喝完。”",
+            "“它没有讨好我，反而因此还不错。”",
+        ]
     elif score >= 52:
-        action = "%s咽下第一口，指尖仍搭在杯沿，没有急着喝第二口。" % card["name"]
-        words = "“能喝，但它还没有真正碰到我今晚想要的东西。”"
+        actions = [
+            "咽下第一口，指尖仍搭在杯沿，没有急着喝第二口",
+            "把杯子放回原处，表情仍在犹豫",
+            "又闻了一次，但没有因此更快下判断",
+        ]
+        words = [
+            "“能喝，但还没有碰到我今晚真正想要的东西。”",
+            "“结构没问题，只是我不会特意回来找它。”",
+            "“它完成了任务，却没有留下理由让我记住。”",
+        ]
     else:
-        action = "%s只抿了一口便把杯子放下，表情没有替老板遮掩答案。" % card["name"]
-        words = "“不。这杯酒和我说的不是一回事。”"
-    return "%s\n%s\n%s的评价：%s" % (action, sensory, card["name"], words)
+        actions = [
+            "只抿了一口便把杯子放下，表情没有替老板遮掩答案",
+            "咽下去后立刻喝了一口水，没有再碰杯子",
+            "眉头在第一口后就皱起来，杯子被推回吧台中线",
+            "停顿很久，最后只把杯子转了半圈",
+        ]
+        words = [
+            "“不。这杯和我说的不是一回事。”",
+            "“问题不是我挑剔，是你根本没有听要求。”",
+            "“别再往这杯里补东西了，换掉更诚实。”",
+        ]
+    action = "%s%s。" % (
+        card["name"],
+        _fresh_choice(
+            state,
+            actions,
+            "recent_sensory_patterns",
+            "npc_action:%s" % (score // 18),
+        ),
+    )
+    words_text = _fresh_choice(
+        state,
+        words,
+        "recent_sensory_patterns",
+        "npc_words:%s" % (score // 18),
+    )
+    return "%s\n%s\n%s当场说：%s" % (action, sensory, card["name"], words_text)
 
 
 def _npc_body_line(card: Dict[str, Any], drunk: float) -> str:
@@ -2485,6 +3097,7 @@ def _score_guest(
         score -= int((intox - 38) * 0.22)
     score += state["upgrades"].get("glassware", 0) * 3
     score += min(len(state.get("decorations", {})), 5)
+    score += int(state.get("session", {}).get("service_bonus", 0))
     score += int((_rand(state) - 0.5) * 8)
     return int(_clamp(score, 0, 100))
 
@@ -2595,31 +3208,135 @@ def _settlement(price: int, satisfaction: int) -> Tuple[int, int, str]:
     return paid, tip, note
 
 
-def _review_comment(card: Dict[str, Any], profile: Dict[str, Any], stars: int) -> str:
-    if stars == 5:
-        return "%s：这杯%s听懂了我今晚真正想喝的东西。" % (
-            card["name"],
-            profile["name"],
-        )
-    if stars == 4:
-        return "%s：%s值得喝完，但还有一处可以更准确。" % (
-            card["name"],
-            profile["name"],
-        )
-    if stars == 3:
-        return "%s：%s没有出错，也没有让我记住。" % (
-            card["name"],
-            profile["name"],
-        )
-    if stars == 2:
-        return "%s：%s偏离了我的要求，我不会按原价买单。" % (
-            card["name"],
-            profile["name"],
-        )
-    return "%s：%s不是我点的那杯。这次我拒绝付款。" % (
-        card["name"],
-        profile["name"],
+def _review_comment(
+    state: Dict[str, Any],
+    card: Dict[str, Any],
+    profile: Dict[str, Any],
+    stars: int,
+    satisfaction: int,
+    price: int,
+    request: Dict[str, Any],
+) -> str:
+    leads = {
+        5: [
+            "这杯让我愿意为了它再来一次",
+            "从香气到收尾都没有浪费我的注意力",
+            "老板没有拿昂贵代替准确",
+            "它比我开口描述的更接近真实需要",
+        ],
+        4: [
+            "值得喝完，也值得再调整一次",
+            "方向对了，只差一点更大胆的判断",
+            "不是完美答案，但我接受这个解释",
+            "它有自己的想法，而且没有盖过我的要求",
+        ],
+        3: [
+            "完成得规矩，但没有留下必须记住的理由",
+            "我不会退杯，也不确定下次还会不会点",
+            "没有明显错误，惊喜也停在门外",
+            "它像一个正确却过分安全的答案",
+        ],
+        2: [
+            "这杯偏离了要求，折价是合理的",
+            "酒本身未必坏，推荐却没有认真听人说话",
+            "第一口就能看出老板把重点弄反了",
+            "我付一部分钱，但不会替错误推荐买全单",
+        ],
+        1: [
+            "这不是我点的那杯，我拒绝付款",
+            "味道、价格和要求没有一件对得上",
+            "免单不能让它变好，只能让这次错误到此为止",
+            "如果这是店里最诚实的回答，那我只会留下差评",
+        ],
+    }
+    tags = set(profile["tags"])
+    desired = set(request.get("tags", []))
+    disliked = tags & set(card.get("dislikes", []))
+    matched = tags & desired
+    fair_price = _default_price(state, profile)
+    if disliked:
+        reason_options = [
+            "%s正好撞上了我明确回避的味道" % _tag_text(sorted(disliked)),
+            "最突出的问题是%s没有被收住" % _tag_text(sorted(disliked)),
+        ]
+        reason_key = "disliked"
+    elif matched:
+        reason_options = [
+            "%s确实被放在了正确的位置" % _tag_text(sorted(matched)),
+            "我提出的%s没有被其他味道盖住" % _tag_text(sorted(matched)),
+        ]
+        reason_key = "matched"
+    elif price > fair_price * 1.25:
+        reason_options = [
+            "售价比它实际给出的体验走得更远",
+            "我能接受贵酒，但不能接受没有根据的溢价",
+        ]
+        reason_key = "price"
+    elif _drink_tier(state, profile) in ("signature", "collector"):
+        reason_options = [
+            "作为%s，它需要比普通酒承担更多记忆点"
+            % _tier_name(_drink_tier(state, profile)),
+            "来历很漂亮，但杯子里的完成度才决定价值",
+        ]
+        reason_key = "tier"
+    else:
+        reason_options = [
+            "入口和余味之间的连接决定了我的判断",
+            "这次真正被我记住的是酒离开以后留下的感觉",
+            "价格%d点，体验也应该对得起这个数字" % price,
+        ]
+        reason_key = "general"
+    lead = _fresh_choice(
+        state,
+        leads[stars],
+        "recent_review_patterns",
+        "lead:%d" % stars,
     )
+    reason = _fresh_choice(
+        state,
+        reason_options,
+        "recent_review_patterns",
+        "reason:%s:%d" % (reason_key, stars),
+    )
+    closings = [
+        "满意度%d。" % satisfaction,
+        "我给它%d星。" % stars,
+        "这是我今晚真实的评价。",
+        "下次是否再点，要看老板有没有记住。",
+    ]
+    closing = _fresh_choice(
+        state,
+        closings,
+        "recent_review_patterns",
+        "closing:%d" % stars,
+    )
+    afterthought_options = [
+        "这和酒贵不贵是两回事",
+        "我更在意老板下次是否还会犯同一种错",
+        "杯子里的诚实比介绍里的故事重要",
+        "换一个心情，我的答案也可能不同",
+        "它适合某些人，但今晚那个人未必是我",
+        "我会记住收尾，而不是酒单上的形容词",
+        "这次评价只属于这一杯，不替下一杯预先打分",
+    ]
+    afterthought = _fresh_choice(
+        state,
+        afterthought_options,
+        "recent_review_patterns",
+        "afterthought:%d" % stars,
+    )
+    prefix = "%s：%s；%s。%s，" % (card["name"], lead, reason, closing)
+    text = prefix + afterthought + "。"
+    recent_texts = state.setdefault("recent_review_texts", [])
+    if text in recent_texts[-20:]:
+        for alternative in afterthought_options:
+            candidate = prefix + alternative + "。"
+            if candidate not in recent_texts[-20:]:
+                text = candidate
+                break
+    recent_texts.append(text)
+    state["recent_review_texts"] = recent_texts[-24:]
+    return text
 
 
 def _serve_guest(
@@ -2691,7 +3408,15 @@ def _serve_guest(
     paid, tip, settlement_note = _settlement(price, satisfaction)
     service_cost = _service_cost(profile, portions)
     stars = _review_stars(satisfaction)
-    review_text = _review_comment(card, profile, stars)
+    review_text = _review_comment(
+        state,
+        card,
+        profile,
+        stars,
+        satisfaction,
+        price,
+        active["request"],
+    )
     before_cash = state["cash"]
     _cash_change(
         state,
@@ -2735,6 +3460,27 @@ def _serve_guest(
     state["reviews"].append(review)
     state["reviews"] = state["reviews"][-100:]
     state["session"]["reviews"].append(review)
+    house_recipe = state.get("house_recipes", {}).get(drink_id)
+    if house_recipe is not None:
+        house_recipe.setdefault("first_guest", card["name"])
+        if not house_recipe.get("first_guest"):
+            house_recipe["first_guest"] = card["name"]
+        house_recipe["sold"] = int(house_recipe.get("sold", 0)) + 1
+        house_recipe["rating_total"] = int(
+            house_recipe.get("rating_total", 0)
+        ) + stars
+        house_recipe["rating_count"] = int(
+            house_recipe.get("rating_count", 0)
+        ) + 1
+        house_recipe.setdefault("sales_history", []).append(
+            {
+                "visit": state["visit"],
+                "guest": card["name"],
+                "paid": paid,
+                "stars": stars,
+            }
+        )
+        house_recipe["sales_history"] = house_recipe["sales_history"][-30:]
     reputation_delta = {5: 2, 4: 1, 3: 0, 2: -2, 1: -4}[stars]
     state["reputation"] = int(
         _clamp(int(state.get("reputation", 50)) + reputation_delta)
@@ -2865,6 +3611,11 @@ def _status_data(state: Dict[str, Any]) -> Dict[str, Any]:
         "house_recipes": len(state.get("house_recipes", {})),
         "decorations": len(state.get("decorations", {})),
         "vendor": state.get("vendor", {}).get("name") if state.get("vendor") else None,
+        "interaction": (
+            state["interaction"].get("kind_name")
+            if state.get("interaction") and not state["interaction"].get("resolved")
+            else None
+        ),
         "guests": [g["id"] for g in state["active_guests"]],
         "drunk": round(_intox(state), 1),
         "level": _drunk_level(_intox(state)),
@@ -3112,11 +3863,14 @@ vendor                               查看当前随机游商
 open / next / leave                  开门 / 推进一步 / 离店
 drinks                               查看当前可出的酒
 invent <基酒类别> <风味> ["名字"]    创作并永久保存原创调酒
+recipe <原创酒ID>                    查看原创酒来历、基酒与销售记录
 price <酒ID> <售价>                  自主定价
 serve <客人ID> <酒ID>                给客人一杯
 cheers <客人ID> <酒ID>               与客人共同喝
 recommend <客人ID>                   按新要求推荐不同酒款
 talk <客人ID> [话题]                  与当前客人交谈并写入关系记忆
+observe / intervene <方式> [内容]     观察或干预NPC之间的持续互动
+story_note <客人ID> "摘要"           保存常客专属故事的新变化
 drink <酒ID>                         老板自己喝
 cheers_user <酒ID> [用户喜欢标签]     邀请用户共同喝
 water / eat                          喝水 / 吃东西
@@ -3295,6 +4049,7 @@ def _cmd_open(state: Dict[str, Any], args: List[str]) -> str:
     state["post_bar"] = False
     state["visit"] += 1
     state["active_guests"] = []
+    state["interaction"] = None
     return "【%s】第%d次开门。\n%s" % (
         state["bar_name"],
         state["visit"],
@@ -3311,7 +4066,10 @@ def _cmd_next(state: Dict[str, Any], args: List[str]) -> str:
         return "还有客人在等酒：%s。可以 serve、cheers 或 decline。" % "、".join(
             state["records"][g["id"]]["card"]["name"] for g in waiting
         )
+    if state.get("interaction") and not state["interaction"].get("resolved"):
+        return _advance_interaction(state)
     state["active_guests"] = []
+    state["interaction"] = None
     trend = _body_tick(state)
     return _spawn_scene(state) + "\n\n老板状态：" + _body_line(state, trend)
 
@@ -3341,14 +4099,21 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
     for recipe_id in _all_recipes(state):
         profile = _drink_profile(state, recipe_id)
         if profile:
+            recipe = _all_recipes(state)[recipe_id]
+            base_note = (
+                "｜首选基酒%s" % recipe.get("base_name")
+                if recipe_id in state.get("house_recipes", {}) and recipe.get("base_name")
+                else ""
+            )
             lines.append(
-                "%s　%s｜%s｜%d点｜%s"
+                "%s　%s｜%s｜%d点｜%s%s"
                 % (
                     recipe_id,
                     profile["name"],
                     _tier_name(_drink_tier(state, profile)),
                     _price(state, profile),
                     _tag_text(profile["tags"]),
+                    base_note,
                 )
             )
     return "\n".join(lines)
@@ -3369,7 +4134,7 @@ def _cmd_invent(state: Dict[str, Any], args: List[str]) -> str:
     if len(tags) < 2 or len(tags) > 4 or not set(tags).issubset(TAGS):
         return "原创调酒需要2～4个有效风味标签。用 help 查看标签。"
     if len(args) >= 3:
-        name = " ".join(args[2:]).strip()
+        name = args[2].strip()
     else:
         prefixes = ["失重", "霓虹", "凌晨三点", "无信号", "逆光", "蓝色噪点", "最后一班"]
         suffixes = ["回声", "出口", "心跳", "来电", "侧影", "潮汐", "余温"]
@@ -3381,6 +4146,33 @@ def _cmd_invent(state: Dict[str, Any], args: List[str]) -> str:
     state["recipe_no"] = int(state.get("recipe_no", 0)) + 1
     recipe_id = "house:%03d" % state["recipe_no"]
     source = sorted(available, key=lambda item: (item["cost"], -item["remaining"]))[0]
+    if len(args) >= 4:
+        inspiration = " ".join(args[3:]).strip()
+    else:
+        recent_guest_names = [
+            state["records"][guest_id]["card"]["name"]
+            for guest_id in state["session"].get("guests", [])[-2:]
+            if guest_id in state["records"]
+        ]
+        inspirations = [
+            "来自酒馆“%s”的灯光、材质与深夜气味" % state.get("vibe", "未定气质"),
+            "来自老板对%s的偏爱" % (_tag_text(state["owner_likes"]) or "未知风味"),
+            "来自一次没有说完的谈话%s"
+            % (("，谈话者是" + "与".join(recent_guest_names)) if recent_guest_names else ""),
+            "来自库存里这瓶%s留下的第一印象" % source["name"],
+        ]
+        inspiration = _choice(state, inspirations)
+    origin_formats = [
+        "老板先记住了%s，随后用%s作骨架，让%s成为这杯酒的核心。它在第%d次营业被正式写进店内酒单。",
+        "这杯酒不是从名字开始的。最初的灵感是%s；试配时选择%s承受主体，并把%s留到收尾。第%d次营业完成定稿。",
+        "在%s之后，老板从%s里取出第一杯实验酒，以%s确定方向。它从第%d次营业起成为可以持续出售的店内作品。",
+    ]
+    origin_story = _choice(state, origin_formats) % (
+        inspiration,
+        source["name"],
+        _tag_text(tags),
+        state["visit"],
+    )
     factor = 0.78
     if "rich" in tags or "smoky" in tags:
         factor += 0.12
@@ -3399,12 +4191,68 @@ def _cmd_invent(state: Dict[str, Any], args: List[str]) -> str:
         "price": price,
         "unit_factor": factor,
         "created_visit": state["visit"],
+        "preferred_product_id": source["id"],
+        "base_name": source["name"],
+        "inspiration": inspiration,
+        "origin_story": origin_story,
+        "first_guest": None,
+        "sold": 0,
+        "rating_total": 0,
+        "rating_count": 0,
+        "tastings": 0,
+        "sales_history": [],
     }
     state["session"]["highlights"].append("创作原创调酒《%s》" % name)
     return (
-        "🍸 新私人特调已写入酒单：%s　%s｜基酒%s｜默认售价%d点｜%s。\n"
-        "以后可直接用 %s 招待、共饮或独饮。"
-        % (recipe_id, name, source["name"], price, _tag_text(tags), recipe_id)
+        "🍸 新私人特调已写入并永久挂上酒单：%s　%s｜首选基酒%s｜默认售价%d点｜%s。\n"
+        "灵感：%s\n来历：%s\n"
+        "只要%s类基酒仍有库存，以后就能继续用 %s 调制并出售；"
+        "首选基酒缺货时可用同类别酒替代，但风味来源会随之变化。"
+        % (
+            recipe_id,
+            name,
+            source["name"],
+            price,
+            _tag_text(tags),
+            inspiration,
+            origin_story,
+            kind,
+            recipe_id,
+        )
+    )
+
+
+def _cmd_recipe(state: Dict[str, Any], args: List[str]) -> str:
+    if not args or args[0] not in state.get("house_recipes", {}):
+        return "用法：recipe <原创酒ID>。先用 drinks 查看酒单。"
+    recipe_id = args[0]
+    recipe = state["house_recipes"][recipe_id]
+    average = (
+        float(recipe.get("rating_total", 0)) / int(recipe.get("rating_count", 1))
+        if int(recipe.get("rating_count", 0)) > 0
+        else 0.0
+    )
+    return (
+        "【店内作品｜%s】\n"
+        "名称：%s｜首选基酒：%s｜类别：%s｜风味：%s｜售价%d点\n"
+        "灵感：%s\n来历：%s\n"
+        "首位客人：%s｜累计售出%d杯｜店内试饮%d次｜平均评价：%s"
+        % (
+            recipe_id,
+            recipe["name"],
+            recipe.get("base_name", recipe["kind"]),
+            recipe["kind"],
+            _tag_text(recipe["tags"]),
+            _price(state, _drink_profile(state, recipe_id))
+            if _drink_profile(state, recipe_id)
+            else int(recipe["price"]),
+            recipe.get("inspiration", "早期配方未记录"),
+            recipe.get("origin_story", "早期配方未记录完整来历"),
+            recipe.get("first_guest") or "尚无人正式购买",
+            int(recipe.get("sold", 0)),
+            int(recipe.get("tastings", 0)),
+            ("%.1f星" % average) if average else "暂无",
+        )
     )
 
 
@@ -3527,6 +4375,9 @@ def _cmd_drink(state: Dict[str, Any], args: List[str]) -> str:
     profile["source"]["history"].append(
         {"visit": state["visit"], "event": "老板自己喝了一杯"}
     )
+    if args[0] in state.get("house_recipes", {}):
+        recipe = state["house_recipes"][args[0]]
+        recipe["tastings"] = int(recipe.get("tastings", 0)) + 1
     return _owner_tasting(state, profile) + "\n" + _body_line(state, trend)
 
 
@@ -3706,15 +4557,15 @@ def _cmd_talk(state: Dict[str, Any], args: List[str]) -> str:
     record = state["records"][guest_id]
     card = record["card"]
     topic = " ".join(args[1:]).strip() or "来处与近况"
-    response = ""
+    canonical_anchor = ""
     for keywords, candidate in _CANON_TOPIC_DIALOGUE.get(guest_id, []):
         if any(keyword in topic for keyword in keywords):
-            response = candidate
+            canonical_anchor = candidate
             break
     if guest_id == "fox_spirit" and any(
         keyword in topic for keyword in ("酒", "货", "市场", "典藏")
     ):
-        response = (
+        canonical_anchor = (
             "九尾狐用指尖拨了拨杯里的冰：“第七码头确实刚到一批梦境蜂蜜利口酒。"
             "我可以告诉你卖家、年份和真假，但不会假装这是人情——消息也有价。"
             "你若只是想知道它好不好喝，我的答案是：甜得像好梦，后劲会把没说出口的话翻出来。”"
@@ -3726,11 +4577,36 @@ def _cmd_talk(state: Dict[str, Any], args: List[str]) -> str:
     record["memories"].append("第%d次来店，与老板谈到：%s" % (state["visit"], topic))
     recent_memory = "；".join(record["memories"][-4:]) or "初次交谈"
     current_drinks = "、".join(active.get("drinks", [])) or "尚未饮酒"
+    dialogue_mode = _fresh_choice(
+        state,
+        [
+            "先直接回答，再主动补上一段相关经历",
+            "先指出问题中不准确的前提，再给出自己的答案",
+            "用一个具体细节回答，避免概括式人生格言",
+            "允许短暂沉默或动作先发生，再开口回应",
+            "回答后自然反问，但反问必须推进同一话题",
+            "承认自己矛盾或不知道，不强行给完整结论",
+            "把当前问题与之前一次谈话连接起来",
+            "若立场不合，明确反驳而不是礼貌附和",
+        ],
+        "recent_dialogue_modes",
+        "talk:%s" % guest_id,
+    )
+    interaction_context = ""
+    if state.get("interaction") and guest_id in state["interaction"].get(
+        "participants", []
+    ):
+        interaction_context = (
+            "当前还与另一位来客围绕“%s”互动，回答可以自然受到这段现场影响。"
+            % state["interaction"]["topic"]
+        )
     internal_brief = (
         "【执行AI内部演绎卡｜不得原样展示给用户】\n"
         "角色：%s｜来处：%s｜性格：%s｜价值立场：%s\n"
         "用户刚刚说/问：%s｜关系：%+d｜来访%d次｜当前醉度：%.1f｜已饮：%s\n"
         "连续记忆：%s\n"
+        "本轮表达变化：%s。%s\n"
+        "人物事实锚点：%s（只用于守住事实，不得照抄句子）\n"
         "演绎规则：%s\n"
         "现在必须生成一段真正给用户看的角色回应，不得只返回摘要、设定或指令。"
         "用户的问题可以完全随机：先理解其真实意图，再以角色此刻知道的信息直接回应。"
@@ -3750,11 +4626,12 @@ def _cmd_talk(state: Dict[str, Any], args: List[str]) -> str:
             float(active.get("npc_drunk", 0.0)),
             current_drinks,
             recent_memory,
+            dialogue_mode,
+            interaction_context,
+            canonical_anchor or "调用你掌握的可靠史实或原作信息，不编造关键履历",
             _roleplay_rule(card),
         )
     )
-    if response:
-        return response + "\n\n" + internal_brief
     return internal_brief
 
 
@@ -3797,6 +4674,7 @@ def _cmd_status(state: Dict[str, Any], args: List[str]) -> str:
         "老板口味：喜欢%s；回避%s｜气质：%s\n"
         "酒库：%s\n"
         "原创调酒：%d款｜装饰：%s\n"
+        "当前NPC互动：%s\n"
         "身体：%s"
         % (
             state["bar_name"] or "未命名酒吧",
@@ -3817,6 +4695,15 @@ def _cmd_status(state: Dict[str, Any], args: List[str]) -> str:
                 )
                 or "暂无"
             ),
+            (
+                "%s｜张力%d"
+                % (
+                    state["interaction"]["kind_name"],
+                    state["interaction"]["tension"],
+                )
+                if state.get("interaction") and not state["interaction"].get("resolved")
+                else "暂无"
+            ),
             _body_line(state),
         )
     )
@@ -3830,12 +4717,13 @@ def _cmd_guests(state: Dict[str, Any], args: List[str]) -> str:
     for guest_id, record in state["records"].items():
         card = record["card"]
         lines.append(
-            "%s　%s｜来访%d｜关系%+d｜已知喜欢：%s｜已知厌恶：%s"
+            "%s　%s｜来访%d｜关系%+d｜故事阶段%d｜已知喜欢：%s｜已知厌恶：%s"
             % (
                 guest_id,
                 card["name"],
                 record["visits"],
                 record["trust"],
+                int(record.get("story_stage", 0)),
                 _tag_text(record["known_likes"]) or "未知",
                 _tag_text(record["known_dislikes"]) or "未知",
             )
@@ -3980,6 +4868,7 @@ def _cmd_source_decor(state: Dict[str, Any], args: List[str]) -> str:
         "tags": likes[:2],
         "desc": description,
     }
+    definition["event_tags"] = _decor_event_tags(definition)
     state["decor_market"][decor_id] = definition
     state["decor_wishlist"].append(name)
     state["decor_wishlist"] = state["decor_wishlist"][-30:]
@@ -4016,13 +4905,17 @@ def _cmd_decor(state: Dict[str, Any], args: List[str]) -> str:
             else "%d点" % int(definition["cost"])
         )
         lines.append(
-            "%s　%s｜%s｜%s·%s｜%s"
+            "%s　%s｜%s｜%s·%s｜维护%d点｜事件：%s｜%s"
             % (
                 decor_id,
                 definition["name"],
                 status,
                 definition.get("rarity", "常见"),
                 definition.get("condition", "状态正常"),
+                int(definition.get("maintenance", 2)),
+                "、".join(
+                    definition.get("event_tags") or _decor_event_tags(definition)
+                ),
                 definition["desc"],
             )
         )
@@ -4049,6 +4942,8 @@ def _cmd_decorate(state: Dict[str, Any], args: List[str]) -> str:
         )
     before = state["cash"]
     _cash_change(state, -cost, "购买酒馆装饰：%s" % definition["name"], "spend")
+    definition = dict(definition)
+    definition.setdefault("event_tags", _decor_event_tags(definition))
     state.setdefault("decorations", {})[decor_id] = {
         "bought_visit": state["visit"],
         "definition": definition,
@@ -4148,6 +5043,10 @@ def _cmd_report(state: Dict[str, Any], args: List[str]) -> str:
     highlights = session["highlights"][-3:]
     if highlights:
         lines.append("值得转达：\n" + "\n".join("• " + item for item in highlights))
+    if session.get("interactions"):
+        lines.append("NPC互动：%s" % session["interactions"][-1])
+    if session.get("decor_events"):
+        lines.append("装修事件：%s" % session["decor_events"][-1])
     lines.append("当前状态：" + _body_line(state))
     return "\n".join(lines)
 
@@ -4238,6 +5137,7 @@ def _cmd_leave(state: Dict[str, Any], args: List[str]) -> str:
     state["memories"] = state["memories"][-30:]
     state["phase"] = "closed"
     state["active_guests"] = []
+    state["interaction"] = None
     state["vendor"] = None
     state["post_bar"] = _intox(state) >= 3 or state["body"]["pending"] > 0
     state["post_bar_turns"] = 0
@@ -4296,6 +5196,8 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _cmd_drinks(state, args)
     if name == "invent":
         return _cmd_invent(state, args)
+    if name == "recipe":
+        return _cmd_recipe(state, args)
     if name == "price":
         return _cmd_price(state, args)
     if name == "serve":
@@ -4312,6 +5214,12 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _cmd_decline(state, args)
     if name == "talk":
         return _cmd_talk(state, args)
+    if name == "observe":
+        return _advance_interaction(state)
+    if name == "intervene":
+        return _cmd_intervene(state, args)
+    if name == "story_note":
+        return _cmd_story_note(state, args)
     if name == "water":
         return _cmd_water(state, args)
     if name == "eat":
