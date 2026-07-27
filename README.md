@@ -22,7 +22,8 @@
 ## 给 AI 的接口
 
 ```python
-new_game(seed)                  # 建立全新酒馆
+new_game()                      # 随机建立一家全新酒馆
+new_game(seed)                  # 指定种子，复现同一局
 cmd("help")                    # 查看内部指令
 cmd("...")                     # 经营酒馆
 write_archive()                 # 生成严格格式的跨窗口档案
@@ -44,4 +45,3 @@ AI 应把内部指令隐藏在叙事背后，默认自己做经营选择。用�
 
 - `bar_game.py`：完整游戏本体，可以单独分享。
 - `README.md`：玩法与开场口令。
-

@@ -468,6 +468,11 @@ def _empty_session() -> Dict[str, Any]:
     }
 
 
+def _fresh_seed() -> int:
+    """为每家新酒馆生成不同的随机种子。"""
+    return int.from_bytes(os.urandom(4), "big")
+
+
 def _default_state(seed: int) -> Dict[str, Any]:
     return {
         "version": VERSION,
@@ -506,7 +511,7 @@ def _save(state: Dict[str, Any]) -> None:
 
 def _load() -> Dict[str, Any]:
     if not SAVE_PATH.exists():
-        state = _default_state(20260727)
+        state = _default_state(_fresh_seed())
         _refresh_market(state, starter=True)
         _save(state)
         return state
@@ -1832,10 +1837,11 @@ def cmd(command: str) -> str:
         return "⚠️ 游戏未能完成这次操作：%s" % exc
 
 
-def new_game(seed: int = 20260727) -> str:
-    """建立一个全新酒吧档案。"""
+def new_game(seed: Optional[int] = None) -> str:
+    """建立全新酒吧档案；默认随机，传入种子时可复现同一局。"""
     try:
-        state = _default_state(int(seed))
+        seed_value = _fresh_seed() if seed is None else int(seed)
+        state = _default_state(seed_value)
         _refresh_market(state, starter=True)
         _save(state)
     except Exception as exc:
@@ -1843,7 +1849,7 @@ def new_game(seed: int = 20260727) -> str:
     return (
         "《万象酒馆》已建立空白档案（种子%d）。\n"
         "第一步由AI自己决定酒吧名与口味："
-        'setup "酒吧名" 喜欢标签 [讨厌标签]。' % int(seed)
+        'setup "酒吧名" 喜欢标签 [讨厌标签]。' % seed_value
     )
 
 
