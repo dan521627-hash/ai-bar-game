@@ -1778,6 +1778,19 @@ def _load() -> Dict[str, Any]:
     state.setdefault("recent_review_texts", [])
     state.setdefault("recent_dialogue_modes", [])
     state.setdefault("upgrades", {})
+    for active in state.get("active_guests", []):
+        card = state.get("records", {}).get(active.get("id"), {}).get("card")
+        if not card:
+            continue
+        if (
+            "financial_traits" not in active
+            or "drinking_plan" not in active
+            or "night_budget" not in active
+        ):
+            night_profile = _guest_night_profile(state, card)
+            active.setdefault("financial_traits", night_profile["financial"])
+            active.setdefault("drinking_plan", night_profile["drinking"])
+            active.setdefault("night_budget", night_profile["night_budget"])
     for upgrade_id in UPGRADE_DEFS:
         state["upgrades"].setdefault(upgrade_id, 0)
     return state
@@ -2183,6 +2196,165 @@ def _guest_alcohol_traits(card: Dict[str, Any]) -> Dict[str, float]:
     }
 
 
+def _guest_financial_traits(card: Dict[str, Any]) -> Dict[str, Any]:
+    """依据人物背景建立稳定的钱袋与慷慨倾向；富有不等于每次都乱花钱。"""
+    text = " ".join(
+        [
+            str(card.get("name", "")),
+            str(card.get("origin", "")),
+            str(card.get("temperament", "")),
+            str(card.get("ethos", "")),
+        ]
+    )
+    budget = int(card.get("budget", 50))
+    if budget >= 88 or any(
+        word in text
+        for word in (
+            "皇帝",
+            "女王",
+            "国王",
+            "帝王",
+            "王室",
+            "财阀",
+            "富豪",
+            "亿万",
+            "斯塔克",
+            "韦恩",
+            "武则天",
+            "退休红龙",
+        )
+    ):
+        wealth, wallet_multiplier = "富裕", 2.15
+    elif budget >= 68:
+        wealth, wallet_multiplier = "宽裕", 1.62
+    elif budget <= 40:
+        wealth, wallet_multiplier = "有限", 0.92
+    else:
+        wealth, wallet_multiplier = "普通", 1.22
+    fingerprint = sum(
+        (index + 5) * ord(char)
+        for index, char in enumerate(str(card.get("id", card["name"])))
+    )
+    generosity = 0.34 + (fingerprint % 31) / 100.0
+    if wealth == "富裕":
+        generosity += 0.20
+    elif wealth == "宽裕":
+        generosity += 0.08
+    if any(word in text for word in ("慷慨", "豪爽", "爱炫耀", "威严", "盛宴")):
+        generosity += 0.20
+    if any(
+        word in text
+        for word in ("吝啬", "小气", "精打细算", "绝不做亏本买卖", "守财", "克制")
+    ):
+        generosity -= 0.28
+    if card.get("id") in ("wu_zetian", "tony_stark"):
+        generosity = max(generosity, 0.90)
+    generosity = _clamp(generosity, 0.05, 1.0)
+    if generosity >= 0.86:
+        generosity_name = "出手阔绰"
+    elif generosity >= 0.64:
+        generosity_name = "大方"
+    elif generosity >= 0.32:
+        generosity_name = "正常"
+    else:
+        generosity_name = "节制"
+    return {
+        "wealth": wealth,
+        "wallet_multiplier": round(wallet_multiplier, 2),
+        "generosity": round(generosity, 2),
+        "generosity_name": generosity_name,
+    }
+
+
+def _guest_drinking_plan(
+    state: Dict[str, Any], card: Dict[str, Any]
+) -> Dict[str, Any]:
+    """决定这位客人今晚为何喝、可能喝几杯；不以新客或回头客区分。"""
+    text = " ".join(
+        [
+            str(card.get("temperament", "")),
+            str(card.get("ethos", "")),
+            str(card.get("origin", "")),
+        ]
+    )
+    sorrow_bias = 0.09
+    if any(
+        word in text
+        for word in (
+            "失意",
+            "孤独",
+            "疲惫",
+            "创伤",
+            "失去",
+            "自我厌弃",
+            "成瘾",
+            "旧债",
+            "怀旧",
+            "破碎",
+        )
+    ):
+        sorrow_bias += 0.17
+    roll = _rand(state)
+    if roll < sorrow_bias:
+        return {
+            "mode": "drown_sorrow",
+            "name": "借酒压住情绪",
+            "max_drinks": 3 + (1 if _rand(state) < 0.36 else 0),
+            "continue_threshold": 42,
+            "reason": (
+                "不是为了品鉴，而是在回避一件暂时不愿说透的事；"
+                "AI必须从此人的史实、原作或既有个人故事里选出一件具体旧事，"
+                "酒越往后越自然地露出细节，不能只笼统说“有心事”。"
+            ),
+        }
+    normalized = (roll - sorrow_bias) / max(0.01, 1.0 - sorrow_bias)
+    if normalized < 0.44:
+        return {
+            "mode": "one_and_done",
+            "name": "只停一杯",
+            "max_drinks": 1,
+            "continue_threshold": 101,
+            "reason": "今晚另有去处或只是短暂停留，无论第一杯多好都不会默认续杯。",
+        }
+    if normalized < 0.78:
+        return {
+            "mode": "second_if_good",
+            "name": "好喝才续第二杯",
+            "max_drinks": 2,
+            "continue_threshold": 76,
+            "reason": "先用第一杯判断这家店；真正满意时才愿意把时间交给第二杯。",
+        }
+    return {
+        "mode": "long_evening",
+        "name": "准备多坐一会儿",
+        "max_drinks": 2 + (1 if _rand(state) < 0.55 else 0),
+        "continue_threshold": 56,
+        "reason": "今晚没有急着离开，愿意边喝边谈，但仍会因难喝、过量或价格失去耐心。",
+    }
+
+
+def _guest_night_profile(
+    state: Dict[str, Any], card: Dict[str, Any]
+) -> Dict[str, Any]:
+    money = _guest_financial_traits(card)
+    drinking = _guest_drinking_plan(state, card)
+    budget_variation = 0.88 + _rand(state) * 0.28
+    return {
+        "financial": money,
+        "drinking": drinking,
+        "night_budget": max(
+            18,
+            int(
+                round(
+                    int(card.get("budget", 50))
+                    * float(money["wallet_multiplier"])
+                    * budget_variation
+                )
+            ),
+        ),
+    }
+
+
 def _story_taste_clue(card: Dict[str, Any], target: Sequence[str], clarity: int) -> str:
     flavor = _tag_text(target)
     if card.get("id") == "zhongli":
@@ -2243,7 +2415,16 @@ def _direct_order_candidate(
 
 def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
     spending_roll = _rand(state)
-    if spending_roll < 0.10 and (
+    financial = _guest_financial_traits(card)
+    if financial["wealth"] == "富裕" and spending_roll < 0.18:
+        spending_style = "collector"
+        budget_multiplier = 3.6
+        tier_preference = "collector"
+    elif financial["wealth"] == "富裕" and spending_roll < 0.52:
+        spending_style = "premium"
+        budget_multiplier = 2.05
+        tier_preference = "premium"
+    elif spending_roll < 0.10 and (
         int(card["budget"]) >= 70 or card.get("rarity") == "rare"
     ):
         spending_style = "collector"
@@ -2262,7 +2443,26 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
         budget_multiplier = 1.15
         tier_preference = "standard"
     behavior_roll = _rand(state)
-    if behavior_roll < 0.46:
+    generosity = float(financial["generosity"])
+    if generosity >= 0.82:
+        if behavior_roll < 0.64:
+            price_behavior = "easygoing"
+        elif behavior_roll < 0.84:
+            price_behavior = "decisive"
+        elif behavior_roll < 0.95:
+            price_behavior = "deliberate"
+        else:
+            price_behavior = "bargainer"
+    elif generosity <= 0.24:
+        if behavior_roll < 0.42:
+            price_behavior = "bargainer"
+        elif behavior_roll < 0.70:
+            price_behavior = "deliberate"
+        elif behavior_roll < 0.86:
+            price_behavior = "walkout_sensitive"
+        else:
+            price_behavior = "easygoing"
+    elif behavior_roll < 0.46:
         price_behavior = "easygoing"
     elif behavior_roll < 0.68:
         price_behavior = "deliberate"
@@ -3004,6 +3204,7 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
         record["visits"] += 1
         record["last_seen"] = state["visit"]
         request = _request_for(state, card)
+        night_profile = _guest_night_profile(state, card)
         state["active_guests"].append(
             {
                 "id": card["id"],
@@ -3017,6 +3218,9 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
                 "npc_alcohol_units": 0.0,
                 "npc_peak": 0.0,
                 "alcohol_traits": _guest_alcohol_traits(card),
+                "financial_traits": night_profile["financial"],
+                "drinking_plan": night_profile["drinking"],
+                "night_budget": night_profile["night_budget"],
                 "approved_offers": [],
                 "declined_offers": [],
                 "haggles": {},
@@ -3028,6 +3232,20 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
         lines.append(
             "🚪 %s推门进来。\n来源：%s｜%s\n%s"
             % (card["name"], card["origin"], card["temperament"], request["text"])
+        )
+        lines.append(
+            "【AI内部来客当夜状态｜不得把标签原样念给用户】"
+            "饮酒节奏：%s（最多%d杯）｜当晚原因：%s｜"
+            "经济：%s、%s｜当晚可支配约%d点。"
+            "请通过点单、停留、说话方式和结账自然表现，不能直接宣读数值。"
+            % (
+                night_profile["drinking"]["name"],
+                night_profile["drinking"]["max_drinks"],
+                night_profile["drinking"]["reason"],
+                night_profile["financial"]["wealth"],
+                night_profile["financial"]["generosity_name"],
+                night_profile["night_budget"],
+            )
         )
         if record["visits"] > 1:
             remembered = (
@@ -3679,8 +3897,17 @@ def _guest_purchase_decision(
     behavior = request.get("price_behavior", "easygoing")
     ordering_mode = request.get("ordering_mode", "preference")
     multiplier = float(request.get("budget_multiplier", 1.15))
+    remaining_night_budget = max(
+        1,
+        int(active.get("night_budget", int(card["budget"]) * multiplier))
+        - int(active.get("spent", 0)),
+    )
     spending_limit = max(
-        1, int(round(int(card["budget"]) * multiplier)) - int(active.get("spent", 0))
+        1,
+        min(
+            remaining_night_budget,
+            int(round(int(card["budget"]) * multiplier)),
+        ),
     )
     fair_price = _default_price(state, profile)
     tier = _drink_tier(state, profile)
@@ -3899,14 +4126,39 @@ def _review_stars(satisfaction: int) -> int:
     return 1
 
 
-def _settlement(price: int, satisfaction: int) -> Tuple[int, int, str]:
+def _settlement(
+    state: Dict[str, Any],
+    price: int,
+    satisfaction: int,
+    financial_traits: Dict[str, Any],
+) -> Tuple[int, int, str]:
     """客人品尝后结账；差评可能触发折价或免单。"""
+    generosity = float(financial_traits.get("generosity", 0.45))
+    wealth = financial_traits.get("wealth", "普通")
     if satisfaction >= 88:
         paid = price
-        tip = int(round(price * 0.10))
-        note = "全额结账并留下小费"
+        tip_rate = _clamp(
+            0.03
+            + generosity * 0.29
+            + (0.04 if wealth == "富裕" else 0.0)
+            + (_rand(state) - 0.5) * 0.06,
+            0.0,
+            0.42,
+        )
+        tip = int(round(price * tip_rate))
+        note = (
+            "全额结账并豪爽地留下小费"
+            if tip_rate >= 0.25
+            else "全额结账并留下小费"
+        )
     elif satisfaction >= 70:
-        paid, tip, note = price, 0, "全额结账"
+        paid = price
+        tip_rate = max(
+            0.0,
+            (generosity - 0.38) * 0.17 + (_rand(state) - 0.55) * 0.025,
+        )
+        tip = int(round(price * tip_rate))
+        note = "全额结账" + ("并留下一点小费" if tip else "")
     elif satisfaction >= 52:
         paid, tip, note = int(round(price * 0.8)), 0, "提出意见后按八折结账"
     elif satisfaction >= 32:
@@ -4052,6 +4304,68 @@ def _review_comment(
     return text
 
 
+def _guest_after_drink_decision(
+    state: Dict[str, Any],
+    card: Dict[str, Any],
+    active: Dict[str, Any],
+    satisfaction: int,
+) -> Tuple[bool, str]:
+    """决定这一杯以后是离店还是续杯，并给 AI 一个可演绎的具体原因。"""
+    plan = active.setdefault("drinking_plan", _guest_drinking_plan(state, card))
+    mode = plan.get("mode", "one_and_done")
+    served_count = int(active.get("served_count", 0))
+    max_drinks = min(4, int(plan.get("max_drinks", 1)))
+    drunk = float(active.get("npc_drunk", 0.0))
+    remaining_budget = int(active.get("night_budget", card["budget"])) - int(
+        active.get("spent", 0)
+    )
+    if served_count >= max_drinks:
+        return False, "%s原本就只打算喝到这里，结账后没有拖延。" % card["name"]
+    if drunk >= 68:
+        return False, "%s还想继续，但身体反应已经越过安全线，今晚的酒单到此为止。" % card["name"]
+    if remaining_budget <= 8:
+        return False, "%s看了一眼今晚剩下的钱，决定在失去分寸前结账。" % card["name"]
+    if mode == "one_and_done":
+        return (
+            False,
+            "%s今晚本来就只停一杯；即使这杯很好，也会喝完、付钱、离开，而不是机械续单。"
+            % card["name"],
+        )
+    if mode == "second_if_good":
+        if satisfaction >= int(plan.get("continue_threshold", 76)) and _rand(state) < 0.88:
+            return (
+                True,
+                "%s原本只想试一杯，但这杯足够好，于是把空杯往前轻轻一推，明确再要第二杯。"
+                % card["name"],
+            )
+        return (
+            False,
+            "%s喝完后认可这杯，却没有满意到改变原计划；对方正常结账离开。"
+            % card["name"],
+        )
+    if mode == "drown_sorrow":
+        if _rand(state) < 0.86:
+            return (
+                True,
+                "%s没有急着评价，只说“再来一杯”。这不是单纯贪杯：那件不愿说透的事正在借酒意露出边缘。"
+                % card["name"],
+            )
+        return (
+            False,
+            "%s本想继续借酒压住情绪，最后却在下一杯之前停住并结账。" % card["name"],
+        )
+    continue_chance = 0.84 if satisfaction >= int(
+        plan.get("continue_threshold", 56)
+    ) else 0.42
+    if _rand(state) < continue_chance:
+        return (
+            True,
+            "%s今晚原本就准备多坐一会儿；这杯之后仍有话没说完，于是自然续了下一杯。"
+            % card["name"],
+        )
+    return False, "%s坐够了，也喝够了，没有为了凑流程强行再点。" % card["name"]
+
+
 def _serve_guest(
     state: Dict[str, Any], guest_id: str, drink_id: str, owner_joins: bool
 ) -> str:
@@ -4067,15 +4381,19 @@ def _serve_guest(
     active.setdefault("closed", False)
     if active["closed"]:
         return "这位客人已经结束今晚的酒单。"
-    if served_count >= 4 or float(active.get("npc_drunk", 0.0)) >= 75:
+    card = _guest_record(
+        state, next(c for c in _all_guest_cards(state) if c["id"] == guest_id)
+    )["card"]
+    drinking_plan = active.setdefault(
+        "drinking_plan", _guest_drinking_plan(state, card)
+    )
+    max_drinks = min(4, int(drinking_plan.get("max_drinks", 1)))
+    if served_count >= max_drinks or float(active.get("npc_drunk", 0.0)) >= 75:
         active["closed"] = True
         active["served"] = True
         return "这位客人已经喝到今晚的上限，不再继续加酒。"
     if drink_id in active["drinks"]:
         return "这位客人这轮已经喝过这杯了。若继续，请推荐不同的酒。"
-    card = _guest_record(state, next(c for c in _all_guest_cards(state) if c["id"] == guest_id))[
-        "card"
-    ]
     profile = _drink_profile(state, drink_id)
     if not profile:
         return "这杯目前调不出来。用 drinks 查看现有酒单。"
@@ -4084,11 +4402,14 @@ def _serve_guest(
     score_card = dict(card)
     score_card["budget"] = max(
         0,
-        int(
-            int(card["budget"])
-            * float(active["request"].get("budget_multiplier", 1.15))
-        )
-        - int(active["spent"]),
+        min(
+            int(
+                int(card["budget"])
+                * float(active["request"].get("budget_multiplier", 1.15))
+            ),
+            int(active.get("night_budget", card["budget"]))
+            - int(active["spent"]),
+        ),
     )
     satisfaction = _score_guest(
         state, score_card, active["request"], profile, price
@@ -4118,7 +4439,12 @@ def _serve_guest(
     if not _consume(state, profile, portions):
         return "剩余酒量不够%s杯。" % portions
     npc_delta = _npc_absorb(active, card, profile)
-    paid, tip, settlement_note = _settlement(price, satisfaction)
+    financial_traits = active.setdefault(
+        "financial_traits", _guest_financial_traits(card)
+    )
+    paid, tip, settlement_note = _settlement(
+        state, price, satisfaction, financial_traits
+    )
     service_cost = _service_cost(profile, portions)
     stars = _review_stars(satisfaction)
     review_text = _review_comment(
@@ -4242,6 +4568,13 @@ def _serve_guest(
             ("＋小费%d点" % tip) if tip else "",
             service_cost,
         ),
+        "消费表现：%s｜%s｜今晚累计消费%d/%d点"
+        % (
+            financial_traits["wealth"],
+            financial_traits["generosity_name"],
+            int(active["spent"]),
+            int(active.get("night_budget", card["budget"])),
+        ),
         "酒馆声誉：%d/100（%+d）" % (state["reputation"], reputation_delta),
         "资金：%d→%d点" % (before_cash, state["cash"]),
     ]
@@ -4261,12 +4594,15 @@ def _serve_guest(
             {"visit": state["visit"], "event": "老板与%s共饮" % card["name"]}
         )
         lines.extend([_owner_tasting(state, profile), _body_line(state, trend)])
-    if (
-        active["served_count"] < 4
-        and active["npc_drunk"] < 65
-        and active["spent"] < int(card["budget"])
-    ):
-        if satisfaction < 90:
+    continue_drinking, continuation_text = _guest_after_drink_decision(
+        state, card, active, satisfaction
+    )
+    lines.append(continuation_text)
+    if continue_drinking:
+        active["closed"] = False
+        active["served"] = False
+        plan_mode = active["drinking_plan"].get("mode")
+        if satisfaction < 72 and plan_mode != "drown_sorrow":
             request = active["request"]
             target = request.get("target_tags", request.get("tags", []))
             clue_stage = min(2, int(request.get("clue_stage", 0)) + 1)
@@ -4276,24 +4612,31 @@ def _serve_guest(
                 request["tags"] = list(target)
                 clue_stage = 2
             lines.append(
-                "%s没有换题，而是根据这一杯继续给线索：%s"
+                "%s愿意留下，但要求下一杯真正调整：%s"
                 % (card["name"], _story_taste_clue(card, target, clue_stage))
-            )
-            lines.append(
-                "这仍是同一轮调酒尝试；最多几轮就会把关键口味说清。"
-                "正确命中后可达到五星，不需要无限猜。"
             )
         else:
             next_request = _request_for(state, card)
+            if plan_mode == "drown_sorrow":
+                next_request["ordering_mode"] = "recommendation"
+                next_request["service_intent"] = "emotion_drinking"
+                next_request["text"] = (
+                    "“再来一杯，换一种做法。别把它调成庆祝的味道；"
+                    "我还不想谈完那件事。”"
+                )
             active["request"] = next_request
             lines.append(
-                "%s对这一轮已经满意，又换了下一杯的想法：%s"
+                "%s下一杯的要求变成：%s"
                 % (card["name"], next_request["text"])
             )
-        lines.append("可用 recommend %s 重新推荐，也可以 next 结束这桌。" % guest_id)
+        lines.append(
+            "这位客人仍在等下一杯；应继续 serve、recommend 或由其明确 decline，"
+            "不能用 next 把续杯意愿跳过去。"
+        )
     else:
         active["closed"] = True
-        lines.append("%s今晚暂时不再加酒。" % card["name"])
+        active["served"] = True
+        lines.append("%s今晚不再加酒，这桌可以自然收束。" % card["name"])
     return "\n".join(lines)
 
 
@@ -4431,6 +4774,13 @@ def _viewer_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
                 "drinks": drinks,
                 "request": str(active.get("request", {}).get("text", ""))[:180],
                 "intox": round(float(active.get("npc_drunk", 0.0)), 1),
+                "drinking_plan": active.get("drinking_plan", {}).get("name", ""),
+                "wealth": active.get("financial_traits", {}).get("wealth", ""),
+                "generosity": active.get("financial_traits", {}).get(
+                    "generosity_name", ""
+                ),
+                "spent": int(active.get("spent", 0)),
+                "night_budget": int(active.get("night_budget", card["budget"])),
             }
         )
     stock = sorted(
@@ -5299,11 +5649,14 @@ def _cmd_recommend(state: Dict[str, Any], args: List[str]) -> str:
     card = state["records"][guest_id]["card"]
     spending_limit = max(
         1,
-        int(
-            int(card["budget"])
-            * float(active["request"].get("budget_multiplier", 1.15))
-        )
-        - int(active.get("spent", 0)),
+        min(
+            int(
+                int(card["budget"])
+                * float(active["request"].get("budget_multiplier", 1.15))
+            ),
+            int(active.get("night_budget", card["budget"]))
+            - int(active.get("spent", 0)),
+        ),
     )
     used = set(active.get("drinks", []))
     candidate_ids = [
@@ -5458,6 +5811,8 @@ def _cmd_decline(state: Dict[str, Any], args: List[str]) -> str:
     active["served"] = True
     active["closed"] = True
     card = state["records"][args[0]]["card"]
+    if int(active.get("served_count", 0)) > 0:
+        return "%s结清已经喝过的酒，决定不再续杯，随后自然离店。" % card["name"]
     state["records"][args[0]]["trust"] -= 1
     return "%s没有喝到酒，记下了这次拒绝，随后退到门外。" % card["name"]
 
