@@ -32,6 +32,71 @@ ARCHIVE_BEGIN = "【AI酒吧档案｜V1】"
 ARCHIVE_END = "【档案结束】"
 WHOLESALE_COST_SCALE = 2.0
 
+KIND_ABV = {
+    "gin": 40.0,
+    "rum": 40.0,
+    "whisky": 43.0,
+    "vodka": 40.0,
+    "tequila": 40.0,
+    "brandy": 40.0,
+    "wine": 13.0,
+    "liqueur": 20.0,
+    "sake": 15.0,
+    "baijiu": 52.0,
+    "beer": 5.0,
+    "cider": 5.0,
+    "mead": 12.0,
+    "vermouth": 16.0,
+    "shochu": 25.0,
+    "sparkling": 12.0,
+}
+
+POUR_VOLUME_ML = {
+    "wine": 150,
+    "sake": 120,
+    "beer": 330,
+    "cider": 330,
+    "mead": 120,
+    "vermouth": 90,
+    "shochu": 70,
+    "sparkling": 150,
+}
+
+SEASONS = {
+    "spring": {
+        "name": "春",
+        "weather": ["带着潮气的暖风", "细雨", "花粉与新叶气味"],
+        "tags": ["floral", "herbal", "crisp"],
+        "pitch": "花香、草本与轻盈清冽",
+    },
+    "summer": {
+        "name": "夏",
+        "weather": ["闷热雷雨", "迟迟不散的暑气", "雨后湿亮的街道"],
+        "tags": ["crisp", "sour", "fruity"],
+        "pitch": "低温、酸味与果香长饮",
+    },
+    "autumn": {
+        "name": "秋",
+        "weather": ["干燥凉风", "落叶擦过门阶", "清冷而高的夜空"],
+        "tags": ["woody", "spiced", "dry"],
+        "pitch": "木香、辛香与干爽酒体",
+    },
+    "winter": {
+        "name": "冬",
+        "weather": ["薄雪", "结霜的玻璃", "卷进门缝的冷风"],
+        "tags": ["rich", "smoky", "sweet"],
+        "pitch": "醇厚、烟熏与温暖甜香",
+    },
+}
+
+OPENING_TIMES = [
+    "傍晚18:20",
+    "晚间20:10",
+    "深夜22:45",
+    "午夜00:30",
+    "凌晨02:15",
+]
+
 TAGS = {
     "sweet": "甜",
     "sour": "酸",
@@ -1504,6 +1569,8 @@ def _catalog_tastes(identifier: str) -> Tuple[List[str], List[str]]:
 
 for _item in _MODERN_FICTION_GUESTS:
     _likes, _dislikes = _catalog_tastes(_item[0])
+    if _item[0] == "zhongli":
+        _likes, _dislikes = ["woody", "rich", "floral"], ["sweet"]
     BUILTIN_GUESTS.append(
         {
             "id": _item[0],
@@ -1566,12 +1633,20 @@ def _empty_session() -> Dict[str, Any]:
         "spend": 0,
         "bought": [],
         "owner_drinks": [],
+        "owner_self_servings": 0,
+        "owner_self_liquid_loss": 0,
+        "owner_self_service_loss": 0,
+        "hospitality_loss": 0,
         "guests": [],
         "reviews": [],
         "interactions": [],
         "decor_events": [],
         "service_bonus": 0,
         "highlights": [],
+        "season": None,
+        "opening_time": None,
+        "weather": None,
+        "featured_drinks": [],
     }
 
 
@@ -1614,6 +1689,9 @@ def _default_state(seed: int) -> Dict[str, Any]:
         ],
         "turn": 0,
         "visit": 0,
+        "calendar_day": 1,
+        "season": "spring",
+        "opening_time": None,
         "records": {},
         "custom_guests": [],
         "generated_guest_no": 0,
@@ -1674,6 +1752,17 @@ def _load() -> Dict[str, Any]:
     state["session"].setdefault("interactions", [])
     state["session"].setdefault("decor_events", [])
     state["session"].setdefault("service_bonus", 0)
+    state["session"].setdefault("owner_self_servings", 0)
+    state["session"].setdefault("owner_self_liquid_loss", 0)
+    state["session"].setdefault("owner_self_service_loss", 0)
+    state["session"].setdefault("hospitality_loss", 0)
+    state["session"].setdefault("season", None)
+    state["session"].setdefault("opening_time", None)
+    state["session"].setdefault("weather", None)
+    state["session"].setdefault("featured_drinks", [])
+    state.setdefault("calendar_day", max(1, int(state.get("visit", 0)) * 19 + 1))
+    state.setdefault("season", "spring")
+    state.setdefault("opening_time", None)
     state.setdefault("play_mode", "autonomous")
     state.setdefault("post_bar_turns", 0)
     state.setdefault("bar_concept", "")
@@ -2064,6 +2153,62 @@ def _guest_weight(state: Dict[str, Any], card: Dict[str, Any]) -> float:
     return max(0.12, weight)  # 气质永远不会把任何人排除。
 
 
+def _guest_alcohol_traits(card: Dict[str, Any]) -> Dict[str, float]:
+    """为每位来客生成稳定但不同的耐受与吸收速度。"""
+    fingerprint = sum(
+        (index + 3) * ord(char)
+        for index, char in enumerate(str(card.get("id", card["name"])))
+    )
+    tolerance = 28.0 + float(fingerprint % 43)
+    absorption = 0.86 + float((fingerprint // 11) % 25) / 100.0
+    text = " ".join(
+        [
+            str(card.get("origin", "")),
+            str(card.get("temperament", "")),
+            str(card.get("ethos", "")),
+        ]
+    )
+    if any(word in text for word in ("神话", "天体", "机械生命", "仿生", "不死", "漫长时间", "古老")):
+        tolerance += 14.0
+        absorption -= 0.08
+    if any(word in text for word in ("疲惫", "创伤", "虚弱", "成瘾", "身体失控")):
+        absorption += 0.08
+    if card.get("id") == "zhongli":
+        tolerance, absorption = 88.0, 0.72
+    return {
+        "tolerance": round(_clamp(tolerance, 12.0, 94.0), 1),
+        "absorption": round(_clamp(absorption, 0.65, 1.25), 2),
+    }
+
+
+def _story_taste_clue(card: Dict[str, Any], target: Sequence[str], clarity: int) -> str:
+    flavor = _tag_text(target)
+    if card.get("id") == "zhongli":
+        if clarity <= 0:
+            return (
+                "钟离没有报酒名，只说想要一杯能承受漫长年月、旧契约与璃月石色的酒；"
+                "普通的热闹和单薄甜味很难让他停留。"
+            )
+        if clarity == 1:
+            return "他补充道：“以沉稳的木香和醇厚作骨架，不必用浮夸的烈度证明年代。”"
+        return "钟离明确确认：今晚真正要找的是%s；酒可以有分量，但不必只靠高度数取胜。" % flavor
+    if clarity <= 0:
+        return (
+            "%s没有直接说风味，只把自己的来处与今晚的心情放进要求里：%s。"
+            "【AI应结合其经历、性格与价值立场推断，不得把隐藏标签直接念给用户。】"
+            % (card["name"], card["temperament"])
+        )
+    if clarity == 1:
+        return (
+            "%s把线索说得更近了一步：“从%s和我经历过的事里找，不要只看贵不贵。”"
+            % (card["name"], card.get("ethos", "今晚的心境"))
+        )
+    return "%s不再为难老板，直接确认想要%s明显一些；下一次正确匹配应当足以得到五星。" % (
+        card["name"],
+        flavor,
+    )
+
+
 def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
     spending_roll = _rand(state)
     if spending_roll < 0.10 and (
@@ -2088,58 +2233,66 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
         "spending_style": spending_style,
         "budget_multiplier": budget_multiplier,
         "tier_preference": tier_preference,
+        "attempts": 0,
+        "clue_stage": 0,
     }
+    seasonal_tags = SEASONS.get(state.get("season", "spring"), SEASONS["spring"])["tags"]
+    liked = list(card["likes"])
+    seasonal_likes = [tag for tag in liked if tag in seasonal_tags]
+    primary = _choice(state, seasonal_likes or liked)
+    secondary = next((tag for tag in liked if tag != primary), primary)
+    target = [primary, secondary] if _rand(state) < 0.36 else [primary]
     if spending_style == "collector":
-        tag = _choice(state, card["likes"])
         return {
             **common,
-            "tags": [tag],
+            "tags": list(target),
+            "target_tags": list(target),
             "text": "“今晚不看基础酒。把你真正舍不得开的店藏款拿来，先说清楚来历和价格。”",
             "revealed": True,
         }
     if spending_style == "premium":
-        tag = _choice(state, card["likes"])
         return {
             **common,
-            "tags": [tag],
-            "text": "“可以推荐好一点的，最好有%s，但贵要贵得有理由。”" % TAGS[tag],
+            "tags": list(target),
+            "target_tags": list(target),
+            "text": "“可以推荐好一点的，最好有%s，但贵要贵得有理由。”" % _tag_text(target),
             "revealed": True,
         }
     reveal = _rand(state)
-    if reveal < 0.26:
-        tag = _choice(state, card["likes"])
+    if reveal < 0.32:
         return {
             **common,
-            "tags": [tag],
+            "tags": list(target),
+            "target_tags": list(target),
             "text": "“给我一杯%s明显一点的。别拿别的味道糊弄我。%s”"
             % (
-                TAGS[tag],
+                _tag_text(target),
                 "价格实在一点。" if spending_style == "value" else "",
             ),
             "revealed": True,
         }
-    if reveal < 0.72:
-        tag = _choice(state, card["likes"])
+    if reveal < 0.62:
         return {
             **common,
-            "tags": [tag],
+            "tags": list(target),
+            "target_tags": list(target),
             "text": "“今晚想喝点%s的，其他由你决定。%s”"
             % (
-                TAGS[tag],
+                _tag_text(target),
                 "不必拿最贵的。" if spending_style == "value" else "",
             ),
             "revealed": True,
         }
-    moods = [
-        ("“我不想喝得太轻。给我一杯能把杂音压下去的。”", ["rich"]),
-        ("“想清醒一点，但不是喝水。”", ["crisp", "dry"]),
-        ("“今天不想解释。你看着办。”", []),
-        ("“给我一点不像原来世界的味道。”", ["floral", "spiced"]),
-    ]
-    text, tags = _choice(state, moods)
+    text = _story_taste_clue(card, target, 0)
     if spending_style == "value":
-        text = text[:-1] + "，但别超过我的打算。”"
-    return {**common, "tags": tags, "text": text, "revealed": False}
+        text += " 他同时说明，今晚不会为猜谜支付昂贵溢价。"
+    return {
+        **common,
+        "tags": [],
+        "target_tags": list(target),
+        "text": text,
+        "revealed": False,
+    }
 
 
 def _select_scene_lead(state: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
@@ -2627,6 +2780,13 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
                 "closed": False,
                 "request": request,
                 "npc_drunk": 0.0,
+                "npc_alcohol_units": 0.0,
+                "npc_peak": 0.0,
+                "alcohol_traits": _guest_alcohol_traits(card),
+                "approved_offers": [],
+                "declined_offers": [],
+                "haggles": {},
+                "deal_prices": {},
             }
         )
         if card["id"] not in state["session"]["guests"]:
@@ -2699,27 +2859,112 @@ def _find_source(state: Dict[str, Any], drink_id: str) -> Optional[Dict[str, Any
     return sorted(choices, key=lambda item: (-item["remaining"], item["cost"]))[0]
 
 
+def _cocktail_volume_ml(tags: Sequence[str], unit_factor: float) -> int:
+    tags_set = set(tags)
+    if tags_set & {"crisp", "fruity", "sour"} and unit_factor <= 0.82:
+        return 180
+    if tags_set & {"rich", "smoky", "woody"} and unit_factor >= 0.96:
+        return 90
+    return 120
+
+
+def _strength_name(abv: float, units: float) -> str:
+    if units < 0.55 or abv < 5:
+        return "低酒精"
+    if units < 0.9 or abv < 11:
+        return "轻度"
+    if units < 1.25 or abv < 18:
+        return "中度"
+    if units < 1.65:
+        return "偏烈"
+    return "烈酒级"
+
+
+def _strength_text(profile: Dict[str, Any]) -> str:
+    return "约%.1f%% ABV·%dml·%.2f酒精单位（%s）" % (
+        float(profile["abv"]),
+        int(profile["volume_ml"]),
+        float(profile["units"]),
+        _strength_name(float(profile["abv"]), float(profile["units"])),
+    )
+
+
 def _drink_profile(state: Dict[str, Any], drink_id: str) -> Optional[Dict[str, Any]]:
     source = _find_source(state, drink_id)
     if not source:
         return None
     if drink_id.startswith("pour:"):
+        kind = source["kind"]
+        base_units = next(
+            (
+                float(item["units"])
+                for item in BASE_PRODUCTS.values()
+                if item["kind"] == kind
+            ),
+            float(source["units"]),
+        )
+        abv = KIND_ABV.get(kind, 20.0) * float(source["units"]) / max(
+            0.1, base_units
+        )
         return {
             "id": drink_id,
             "name": source["name"] + "·净饮",
             "tags": list(source["tags"]),
             "units": float(source["units"]),
+            "abv": round(_clamp(abv, 1.0, 75.0), 1),
+            "volume_ml": int(POUR_VOLUME_ML.get(kind, 40)),
             "source": source,
         }
     recipe = _all_recipes(state)[drink_id]
+    units = round(float(source["units"]) * recipe["unit_factor"], 2)
+    volume_ml = int(
+        recipe.get(
+            "volume_ml",
+            _cocktail_volume_ml(recipe["tags"], float(recipe["unit_factor"])),
+        )
+    )
+    abv = round(_clamp(units * 10.0 / max(30, volume_ml) * 100.0, 1.0, 65.0), 1)
     return {
         "id": drink_id,
         "name": recipe["name"],
         "tags": list(dict.fromkeys(recipe["tags"] + source["tags"][:1])),
-        "units": round(float(source["units"]) * recipe["unit_factor"], 2),
+        "units": units,
+        "abv": abv,
+        "volume_ml": volume_ml,
         "source": source,
         "recipe": recipe,
     }
+
+
+def _seasonal_featured_drinks(state: Dict[str, Any], limit: int = 3) -> List[str]:
+    season_tags = set(
+        SEASONS.get(state.get("season", "spring"), SEASONS["spring"])["tags"]
+    )
+    candidate_ids = [
+        "pour:" + product_id
+        for product_id, item in state.get("inventory", {}).items()
+        if int(item.get("remaining", 0)) > 0
+    ] + list(_all_recipes(state))
+    ranked = []
+    seen_names = set()
+    for drink_id in candidate_ids:
+        profile = _drink_profile(state, drink_id)
+        if not profile or profile["name"] in seen_names:
+            continue
+        match = len(set(profile["tags"]) & season_tags)
+        if match <= 0:
+            continue
+        ranked.append(
+            (
+                -match,
+                abs(float(profile["units"]) - (0.8 if state.get("season") == "summer" else 1.1)),
+                _price(state, profile),
+                profile["name"],
+            )
+        )
+        seen_names.add(profile["name"])
+    ranked.sort()
+    return [item[3] for item in ranked[:limit]]
 
 
 def _default_price(state: Dict[str, Any], profile: Dict[str, Any]) -> int:
@@ -2789,6 +3034,40 @@ def _consume(state: Dict[str, Any], profile: Dict[str, Any], count: int) -> bool
         }
     )
     return True
+
+
+def _liquid_cost(profile: Dict[str, Any], portions: int = 1) -> int:
+    source = profile["source"]
+    return int(
+        math.ceil(float(source["cost"]) / max(1, int(source["servings"])))
+    ) * portions
+
+
+def _record_owner_consumption(
+    state: Dict[str, Any],
+    profile: Dict[str, Any],
+    portions: int = 1,
+    charge_service: bool = True,
+) -> int:
+    """记录老板自饮造成的库存机会成本与真实耗材支出。"""
+    liquid = _liquid_cost(profile, portions)
+    service = _service_cost(profile, portions)
+    session = state["session"]
+    session["owner_self_servings"] = int(session.get("owner_self_servings", 0)) + portions
+    session["owner_self_liquid_loss"] = int(
+        session.get("owner_self_liquid_loss", 0)
+    ) + liquid
+    session["owner_self_service_loss"] = int(
+        session.get("owner_self_service_loss", 0)
+    ) + service
+    if charge_service:
+        _cash_change(
+            state,
+            -service,
+            "老板自饮%s的冰、辅料、杯具清洁与损耗" % profile["name"],
+            "spend",
+        )
+    return liquid + service
 
 
 def _service_cost(profile: Dict[str, Any], portions: int = 1) -> int:
@@ -3062,7 +3341,33 @@ def _npc_reaction(
     return "%s\n%s\n%s当场说：%s" % (action, sensory, card["name"], words_text)
 
 
-def _npc_body_line(card: Dict[str, Any], drunk: float) -> str:
+def _npc_absorb(
+    active: Dict[str, Any], card: Dict[str, Any], profile: Dict[str, Any]
+) -> float:
+    traits = active.setdefault("alcohol_traits", _guest_alcohol_traits(card))
+    tolerance = float(traits["tolerance"])
+    absorption = float(traits["absorption"])
+    previous = float(active.get("npc_drunk", 0.0))
+    servings = int(active.get("served_count", 0))
+    pace_factor = 1.0 + max(0, servings - 1) * 0.08
+    food_factor = 0.88 if "rich" in card.get("likes", []) else 1.0
+    sensitivity = (1.22 - tolerance / 125.0) * absorption * pace_factor * food_factor
+    increase = float(profile["units"]) * 20.0 * _clamp(sensitivity, 0.28, 1.28)
+    recovery = 1.2 + tolerance * 0.018
+    current = round(_clamp(previous + increase - recovery), 1)
+    active["npc_drunk"] = current
+    active["npc_alcohol_units"] = round(
+        float(active.get("npc_alcohol_units", 0.0)) + float(profile["units"]), 2
+    )
+    active["npc_peak"] = max(float(active.get("npc_peak", 0.0)), current)
+    return current - previous
+
+
+def _npc_body_line(
+    card: Dict[str, Any], active: Dict[str, Any], delta: float = 0.0
+) -> str:
+    drunk = float(active.get("npc_drunk", 0.0))
+    traits = active.setdefault("alcohol_traits", _guest_alcohol_traits(card))
     if drunk < 8:
         reaction = "神态与动作几乎没有变化"
     elif drunk < 22:
@@ -3073,7 +3378,15 @@ def _npc_body_line(card: Dict[str, Any], drunk: float) -> str:
         reaction = "视线停留得更久，情绪已经很难完全藏住"
     else:
         reaction = "重心和语言组织明显受影响，不适合再加酒"
-    return "%s醉度：%.1f/100｜%s" % (card["name"], drunk, reaction)
+    direction = "上升%.1f" % delta if delta > 0.05 else "变化很小"
+    return "%s醉度：%.1f/100（%s）｜耐受%.0f·吸收系数%.2f｜%s" % (
+        card["name"],
+        drunk,
+        direction,
+        float(traits["tolerance"]),
+        float(traits["absorption"]),
+        reaction,
+    )
 
 
 def _score_guest(
@@ -3087,9 +3400,19 @@ def _score_guest(
     score = 52
     score += 11 * len(tags & set(card["likes"]))
     score -= 17 * len(tags & set(card["dislikes"]))
-    score += 12 * len(tags & set(request["tags"]))
-    if request["tags"] and not tags.intersection(request["tags"]):
+    target_tags = set(request.get("target_tags", request.get("tags", [])))
+    score += 15 * len(tags & target_tags)
+    if target_tags and not tags.intersection(target_tags):
         score -= 15
+    attempts = int(request.get("attempts", 0))
+    if target_tags and target_tags.issubset(tags) and not (
+        tags & set(card["dislikes"])
+    ):
+        score += 10 + min(attempts, 2) * 4
+    if attempts >= 2 and target_tags.issubset(tags) and not (
+        tags & set(card["dislikes"])
+    ):
+        score = max(score, 93 + min(attempts - 2, 3))
     if price > card["budget"]:
         score -= min(28, (price - card["budget"]) // 2 + 8)
     intox = _intox(state)
@@ -3112,6 +3435,7 @@ def _guest_purchase_decision(
     """客人先判断是否愿意购买；老板不能用 serve 强行把贵酒变成成交。"""
     approved = active.setdefault("approved_offers", [])
     declined = active.setdefault("declined_offers", [])
+    haggles = active.setdefault("haggles", {})
     if profile["id"] in approved:
         approved.remove(profile["id"])
         return "accept", "“你已经把价格和理由说清楚了。这次我愿意试。”"
@@ -3132,24 +3456,62 @@ def _guest_purchase_decision(
     trust = int(state["records"][card["id"]].get("trust", 0))
     markup = price / max(1, fair_price)
     if price > spending_limit * 1.35:
+        if match >= 2 or (
+            tier in ("signature", "collector") and style in ("premium", "collector")
+        ):
+            proposed = max(
+                fair_price,
+                min(spending_limit, int(round(price * (0.72 + _rand(state) * 0.12)))),
+            )
+            haggles[profile["id"]] = {
+                "asked": price,
+                "offer": proposed,
+                "minimum": min(price, int(round(fair_price * 1.08))),
+            }
+            return (
+                "haggle",
+                "“我想喝的确实是它，但%d点太离谱。我出%d点；你若愿意，我们现在成交。”"
+                % (price, proposed),
+            )
         declined.append(profile["id"])
+        if price > spending_limit * 1.9 or markup > 1.8:
+            active["closed"] = True
+            active["served"] = True
+            state["records"][card["id"]]["trust"] = max(-20, trust - 2)
+            return (
+                "walkout",
+                "“这不是今晚预算的问题，是报价让我不再信任这家店。”"
+                "对方没有要求换酒，直接起身离开。",
+            )
         return (
-            "reject",
+            "switch",
             "“%d点超出了我今晚愿意付的范围。给我看便宜一点的，不要替我决定预算。”"
             % price,
         )
     if markup > 1.55:
+        if match >= 2:
+            proposed = max(fair_price, int(round(price * 0.78)))
+            haggles[profile["id"]] = {
+                "asked": price,
+                "offer": proposed,
+                "minimum": min(price, int(round(fair_price * 1.1))),
+            }
+            return (
+                "haggle",
+                "“酒我想喝，但溢价我不认。%d点成交，否则我换别的。”" % proposed,
+            )
         declined.append(profile["id"])
         state["records"][card["id"]]["trust"] = max(-20, trust - 2)
         return (
-            "reject",
-            "“这杯的正常价值我看得出来。%d点不是高级，是把我当成不会算账。”" % price,
+            "switch",
+            "“这杯的正常价值我看得出来。%d点不是高级，是把我当成不会算账。换一杯。”"
+            % price,
         )
     if tier in ("signature", "collector") and style not in ("premium", "collector"):
         if match <= 1 or trust < 5:
             declined.append(profile["id"])
             return (
-                "reject",
+                "switch",
                 "“我没有说要最贵的。先给我一杯符合口味的%s。”"
                 % ("基础酒" if style == "value" else "常规酒"),
             )
@@ -3161,19 +3523,19 @@ def _guest_purchase_decision(
     if style == "collector" and tier not in ("signature", "collector"):
         if match < 2:
             declined.append(profile["id"])
-            return "reject", "“我点名要看店藏，不是把普通酒换个说法端给我。”"
+            return "switch", "“我点名要看店藏，不是把普通酒换个说法端给我。”"
     if price > spending_limit:
         chance = 0.28 + min(trust, 20) * 0.02 + min(match, 3) * 0.10
         if _rand(state) > chance:
             declined.append(profile["id"])
             return (
-                "reject",
+                "switch",
                 "“我付得起不代表我今晚愿意付。%d点，换一杯。”" % price,
             )
         return "accept", "“比我原本的预算高，但这次匹配得足够好。我试一次。”"
     if mismatch and match == 0:
         declined.append(profile["id"])
-        return "reject", "“价格不是问题。问题是这杯根本没有听我在说什么。”"
+        return "switch", "“价格不是问题。问题是这杯根本没有听我在说什么。”"
     if tier in ("signature", "collector"):
         return "accept", "“这杯确实配得上它的来历。开吧，我想尝试。”"
     return "accept", "“可以，这个价格和推荐都说得通。”"
@@ -3325,7 +3687,12 @@ def _review_comment(
         "recent_review_patterns",
         "afterthought:%d" % stars,
     )
-    prefix = "%s：%s；%s。%s，" % (card["name"], lead, reason, closing)
+    prefix = "%s：%s；%s。%s，" % (
+        card["name"],
+        lead,
+        reason,
+        closing.rstrip("。"),
+    )
     text = prefix + afterthought + "。"
     recent_texts = state.setdefault("recent_review_texts", [])
     if text in recent_texts[-20:]:
@@ -3367,7 +3734,7 @@ def _serve_guest(
     if not profile:
         return "这杯目前调不出来。用 drinks 查看现有酒单。"
     portions = 2 if owner_joins else 1
-    price = _price(state, profile)
+    price = int(active.get("deal_prices", {}).get(drink_id, _price(state, profile)))
     score_card = dict(card)
     score_card["budget"] = max(
         0,
@@ -3384,6 +3751,12 @@ def _serve_guest(
         state, card, active, profile, price
     )
     if decision != "accept":
+        next_step = {
+            "consider": "先自然介绍这杯，再次 serve 才会执行已获同意的尝试。",
+            "haggle": "可用 bargain 回应报价；在成交前不会扣库存。",
+            "walkout": "这桌已经结束，不能再强行推荐。",
+            "switch": "客人愿意考虑别的酒，请按预算和口味重新推荐。",
+        }.get(decision, "请根据客人的预算和口味重新推荐。")
         return (
             "🥃 推荐给%s：%s｜%s｜%d点\n%s\n"
             "客人尚未购买，库存与资金都没有变化。%s"
@@ -3393,18 +3766,12 @@ def _serve_guest(
                 _tier_name(_drink_tier(state, profile)),
                 price,
                 decision_text,
-                (
-                    "先自然介绍这杯，再次 serve 才会执行已获同意的尝试。"
-                    if decision == "consider"
-                    else "请根据客人的预算和口味重新推荐。"
-                ),
+                next_step,
             )
         )
     if not _consume(state, profile, portions):
         return "剩余酒量不够%s杯。" % portions
-    active["npc_drunk"] = round(
-        _clamp(float(active.get("npc_drunk", 0.0)) + profile["units"] * 18.0), 1
-    )
+    npc_delta = _npc_absorb(active, card, profile)
     paid, tip, settlement_note = _settlement(price, satisfaction)
     service_cost = _service_cost(profile, portions)
     stars = _review_stars(satisfaction)
@@ -3433,6 +3800,9 @@ def _serve_guest(
     )
     active["served"] = True
     active["served_count"] = served_count + 1
+    active["request"]["attempts"] = int(
+        active["request"].get("attempts", 0)
+    ) + 1
     active["drinks"].append(drink_id)
     active["spent"] = int(active["spent"]) + paid + tip
     record = state["records"][guest_id]
@@ -3449,6 +3819,11 @@ def _serve_guest(
     )
     review = {
         "visit": state["visit"],
+        "calendar_day": int(state.get("calendar_day", 1)),
+        "season": SEASONS.get(
+            state.get("season", "spring"), SEASONS["spring"]
+        )["name"],
+        "opening_time": state.get("opening_time"),
         "guest_id": guest_id,
         "guest": card["name"],
         "drink": profile["name"],
@@ -3508,10 +3883,11 @@ def _serve_guest(
             _tier_name(_drink_tier(state, profile)),
             price,
         ),
+        "酒精结构：" + _strength_text(profile),
         "购买决定：" + decision_text,
         _npc_reaction(state, card, profile, satisfaction),
         "满意度：%d/100｜关系：%+d" % (satisfaction, record["trust"]),
-        _npc_body_line(card, active["npc_drunk"]),
+        _npc_body_line(card, active, npc_delta),
         "评价：%s｜%s" % ("★" * stars + "☆" * (5 - stars), review_text),
         "结账：%s｜实付%d点%s｜本杯耗材%d点"
         % (
@@ -3534,6 +3910,7 @@ def _serve_guest(
     if owner_joins:
         trend = _add_alcohol(state, profile["units"])
         state["session"]["owner_drinks"].append(profile["name"])
+        _record_owner_consumption(state, profile, 1, charge_service=False)
         profile["source"]["history"].append(
             {"visit": state["visit"], "event": "老板与%s共饮" % card["name"]}
         )
@@ -3543,12 +3920,30 @@ def _serve_guest(
         and active["npc_drunk"] < 65
         and active["spent"] < int(card["budget"])
     ):
-        next_request = _request_for(state, card)
-        active["request"] = next_request
-        lines.append(
-            "%s没有立刻离开，又换了下一杯的想法：%s"
-            % (card["name"], next_request["text"])
-        )
+        if satisfaction < 90:
+            request = active["request"]
+            target = request.get("target_tags", request.get("tags", []))
+            clue_stage = min(2, int(request.get("clue_stage", 0)) + 1)
+            request["clue_stage"] = clue_stage
+            if clue_stage >= 2 or int(request.get("attempts", 0)) >= 2:
+                request["revealed"] = True
+                request["tags"] = list(target)
+                clue_stage = 2
+            lines.append(
+                "%s没有换题，而是根据这一杯继续给线索：%s"
+                % (card["name"], _story_taste_clue(card, target, clue_stage))
+            )
+            lines.append(
+                "这仍是同一轮调酒尝试；最多几轮就会把关键口味说清。"
+                "正确命中后可达到五星，不需要无限猜。"
+            )
+        else:
+            next_request = _request_for(state, card)
+            active["request"] = next_request
+            lines.append(
+                "%s对这一轮已经满意，又换了下一杯的想法：%s"
+                % (card["name"], next_request["text"])
+            )
         lines.append("可用 recommend %s 重新推荐，也可以 next 结束这桌。" % guest_id)
     else:
         active["closed"] = True
@@ -3572,17 +3967,28 @@ def _session_memory(state: Dict[str, Any]) -> str:
         else ""
     )
     net = session["revenue"] - session["spend"]
+    owner_loss = int(session.get("owner_self_liquid_loss", 0)) + int(
+        session.get("owner_self_service_loss", 0)
+    )
+    season_id = session.get("season") or state.get("season", "spring")
+    time_note = "%s季%s" % (
+        SEASONS.get(season_id, SEASONS["spring"])["name"],
+        session.get("opening_time") or "未记录时段",
+    )
     return (
-        "第%d次酒吧经历：收入%d点，支出%d点，净变化%+d点；%s；"
-        "遇见%s；%s%s。离店时%s。"
+        "第%d次酒吧经历（%s）：收入%d点，支出%d点，净变化%+d点；%s；"
+        "遇见%s；%s；老板自饮%d杯，库存与耗材损耗%d点%s。离店时%s。"
         % (
             state["visit"],
+            time_note,
             session["revenue"],
             session["spend"],
             net,
             bought,
             guests,
             drank,
+            int(session.get("owner_self_servings", 0)),
+            owner_loss,
             highlights,
             _body_line(state),
         )
@@ -3606,6 +4012,11 @@ def _status_data(state: Dict[str, Any]) -> Dict[str, Any]:
         "reputation": state.get("reputation", 50),
         "financial_health": _financial_health(state),
         "visit": state["visit"],
+        "calendar_day": int(state.get("calendar_day", 1)),
+        "season": SEASONS.get(
+            state.get("season", "spring"), SEASONS["spring"]
+        )["name"],
+        "opening_time": state.get("opening_time"),
         "turn": state["turn"],
         "inventory": len(state["inventory"]),
         "house_recipes": len(state.get("house_recipes", {})),
@@ -3868,6 +4279,8 @@ price <酒ID> <售价>                  自主定价
 serve <客人ID> <酒ID>                给客人一杯
 cheers <客人ID> <酒ID>               与客人共同喝
 recommend <客人ID>                   按新要求推荐不同酒款
+ask_taste <客人ID> [问题]             追问隐藏口味，最多两轮说清
+bargain <客人ID> <酒ID> ...           接受、反报价或拒绝客人砍价
 talk <客人ID> [话题]                  与当前客人交谈并写入关系记忆
 observe / intervene <方式> [内容]     观察或干预NPC之间的持续互动
 story_note <客人ID> "摘要"           保存常客专属故事的新变化
@@ -4037,6 +4450,38 @@ def _cmd_buy(state: Dict[str, Any], args: List[str]) -> str:
     )
 
 
+def _advance_calendar(state: Dict[str, Any]) -> str:
+    """推进酒馆自己的日期、季节和本次开门时段。"""
+    state["calendar_day"] = int(state.get("calendar_day", 1)) + 12 + int(
+        _rand(state) * 22
+    )
+    day_of_year = (int(state["calendar_day"]) - 1) % 360
+    season_id = ("spring", "summer", "autumn", "winter")[day_of_year // 90]
+    previous_time = state.get("opening_time")
+    choices = [value for value in OPENING_TIMES if value != previous_time]
+    opening_time = _choice(state, choices or OPENING_TIMES)
+    weather = _choice(state, SEASONS[season_id]["weather"])
+    state["season"] = season_id
+    state["opening_time"] = opening_time
+    state["session"]["season"] = season_id
+    state["session"]["opening_time"] = opening_time
+    state["session"]["weather"] = weather
+    featured = _seasonal_featured_drinks(state)
+    state["session"]["featured_drinks"] = featured
+    return (
+        "时间：第%d日·%s季·%s｜门外是%s。\n"
+        "本季主推：%s｜当晚酒款：%s；这只是推荐，不会阻止任何客人点其他风味。"
+        % (
+            int(state["calendar_day"]),
+            SEASONS[season_id]["name"],
+            opening_time,
+            weather,
+            SEASONS[season_id]["pitch"],
+            "、".join(featured) if featured else "等待老板按现有库存创作",
+        )
+    )
+
+
 def _cmd_open(state: Dict[str, Any], args: List[str]) -> str:
     del args
     if state["phase"] == "setup":
@@ -4050,9 +4495,11 @@ def _cmd_open(state: Dict[str, Any], args: List[str]) -> str:
     state["visit"] += 1
     state["active_guests"] = []
     state["interaction"] = None
-    return "【%s】第%d次开门。\n%s" % (
+    clock_line = _advance_calendar(state)
+    return "【%s】第%d次开门。\n%s\n%s" % (
         state["bar_name"],
         state["visit"],
+        clock_line,
         _spawn_scene(state, force=True),
     )
 
@@ -4076,8 +4523,20 @@ def _cmd_next(state: Dict[str, Any], args: List[str]) -> str:
 
 def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
     del args
+    season = SEASONS.get(state.get("season", "spring"), SEASONS["spring"])
     lines = [
         "【当前可出酒单】",
+        "%s季主推：%s｜主推风味%s｜当晚酒款%s"
+        % (
+            season["name"],
+            season["pitch"],
+            _tag_text(season["tags"]),
+            "、".join(
+                state["session"].get("featured_drinks")
+                or _seasonal_featured_drinks(state)
+            )
+            or "尚待生成",
+        ),
         "经典款%d种｜酒馆原创%d种（invent <基酒类别> <风味标签> [名字]）"
         % (len(RECIPES), len(state.get("house_recipes", {}))),
     ]
@@ -4086,7 +4545,7 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
             continue
         profile = _drink_profile(state, "pour:" + product_id)
         lines.append(
-            "pour:%s　%s｜%s｜%d点｜余%d杯｜%s"
+            "pour:%s　%s｜%s｜%d点｜余%d杯｜%s｜%s"
             % (
                 product_id,
                 profile["name"],
@@ -4094,6 +4553,7 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
                 _price(state, profile),
                 item["remaining"],
                 _tag_text(profile["tags"]),
+                _strength_text(profile),
             )
         )
     for recipe_id in _all_recipes(state):
@@ -4106,7 +4566,7 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
                 else ""
             )
             lines.append(
-                "%s　%s｜%s｜%d点｜%s%s"
+                "%s　%s｜%s｜%d点｜%s%s｜%s"
                 % (
                     recipe_id,
                     profile["name"],
@@ -4114,6 +4574,7 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
                     _price(state, profile),
                     _tag_text(profile["tags"]),
                     base_note,
+                    _strength_text(profile),
                 )
             )
     return "\n".join(lines)
@@ -4227,6 +4688,7 @@ def _cmd_recipe(state: Dict[str, Any], args: List[str]) -> str:
         return "用法：recipe <原创酒ID>。先用 drinks 查看酒单。"
     recipe_id = args[0]
     recipe = state["house_recipes"][recipe_id]
+    profile = _drink_profile(state, recipe_id)
     average = (
         float(recipe.get("rating_total", 0)) / int(recipe.get("rating_count", 1))
         if int(recipe.get("rating_count", 0)) > 0
@@ -4235,6 +4697,7 @@ def _cmd_recipe(state: Dict[str, Any], args: List[str]) -> str:
     return (
         "【店内作品｜%s】\n"
         "名称：%s｜首选基酒：%s｜类别：%s｜风味：%s｜售价%d点\n"
+        "酒精结构：%s\n"
         "灵感：%s\n来历：%s\n"
         "首位客人：%s｜累计售出%d杯｜店内试饮%d次｜平均评价：%s"
         % (
@@ -4243,9 +4706,10 @@ def _cmd_recipe(state: Dict[str, Any], args: List[str]) -> str:
             recipe.get("base_name", recipe["kind"]),
             recipe["kind"],
             _tag_text(recipe["tags"]),
-            _price(state, _drink_profile(state, recipe_id))
-            if _drink_profile(state, recipe_id)
+            _price(state, profile)
+            if profile
             else int(recipe["price"]),
+            _strength_text(profile) if profile else "当前缺少同类基酒，暂时无法估算成杯强度",
             recipe.get("inspiration", "早期配方未记录"),
             recipe.get("origin_story", "早期配方未记录完整来历"),
             recipe.get("first_guest") or "尚无人正式购买",
@@ -4270,6 +4734,88 @@ def _cmd_price(state: Dict[str, Any], args: List[str]) -> str:
         return "售价应在1～999点之间。"
     state["prices"][args[0]] = amount
     return "%s的售价设为%d点。" % (profile["name"], amount)
+
+
+def _cmd_ask_taste(state: Dict[str, Any], args: List[str]) -> str:
+    if not args:
+        return "用法：ask_taste <客人ID> [老板的问题]"
+    guest_id = args[0]
+    active = next(
+        (guest for guest in state["active_guests"] if guest["id"] == guest_id),
+        None,
+    )
+    if not active or active.get("closed"):
+        return "这位客人现在无法继续谈这杯酒。"
+    card = state["records"][guest_id]["card"]
+    request = active["request"]
+    target = request.get("target_tags", request.get("tags", []))
+    stage = min(2, int(request.get("clue_stage", 0)) + 1)
+    request["clue_stage"] = stage
+    if stage >= 2:
+        request["revealed"] = True
+        request["tags"] = list(target)
+    question = " ".join(args[1:]).strip()
+    lead = (
+        "老板没有盲目倒酒，而是问：“%s”\n" % question
+        if question
+        else "老板先追问了入口、余味和今晚不想碰到的味道。\n"
+    )
+    return lead + _story_taste_clue(card, target, stage)
+
+
+def _cmd_bargain(state: Dict[str, Any], args: List[str]) -> str:
+    if len(args) < 3:
+        return "用法：bargain <客人ID> <酒ID> accept｜counter <点数>｜refuse"
+    guest_id, drink_id, action = args[0], args[1], args[2].lower()
+    active = next(
+        (guest for guest in state["active_guests"] if guest["id"] == guest_id),
+        None,
+    )
+    if not active or active.get("closed"):
+        return "这位客人已经不在可议价状态。"
+    deal = active.setdefault("haggles", {}).get(drink_id)
+    if not deal:
+        return "这位客人没有为这杯酒提出议价。"
+    card = state["records"][guest_id]["card"]
+    if action == "accept":
+        agreed = int(deal["offer"])
+    elif action == "counter":
+        if len(args) < 4:
+            return "反报价需要写点数：bargain <客人ID> <酒ID> counter <点数>"
+        try:
+            agreed = int(args[3])
+        except ValueError:
+            return "反报价必须是整数点数。"
+        ceiling = max(int(deal["offer"]), int(round(int(deal["asked"]) * 0.9)))
+        if agreed > ceiling:
+            active["closed"] = True
+            active["served"] = True
+            state["records"][guest_id]["trust"] = max(
+                -20, int(state["records"][guest_id].get("trust", 0)) - 1
+            )
+            return (
+                "%s听完%d点的反报价，没有再换酒：“看来我们对成交没有共同理解。”"
+                "对方直接离店，库存与资金未变化。"
+                % (card["name"], agreed)
+            )
+        agreed = max(1, agreed)
+    elif action == "refuse":
+        active["haggles"].pop(drink_id, None)
+        if _rand(state) < 0.48:
+            active["closed"] = True
+            active["served"] = True
+            return "%s收回报价，直接离店；没有成交，也没有消耗库存。" % card["name"]
+        active.setdefault("declined_offers", []).append(drink_id)
+        return "%s没有离开，但明确放弃这杯，要求换一个价位合适的选择。" % card["name"]
+    else:
+        return "议价动作只能是 accept、counter 或 refuse。"
+    active.setdefault("deal_prices", {})[drink_id] = agreed
+    active.setdefault("approved_offers", []).append(drink_id)
+    active["haggles"].pop(drink_id, None)
+    return "%s与老板以%d点成交。再次 serve 才会正式调制、扣库存并结账。" % (
+        card["name"],
+        agreed,
+    )
 
 
 def _cmd_serve(state: Dict[str, Any], args: List[str], joins: bool = False) -> str:
@@ -4370,6 +4916,7 @@ def _cmd_drink(state: Dict[str, Any], args: List[str]) -> str:
         return "信息身体已经无法稳定完成继续饮酒的动作。"
     if not _consume(state, profile, 1):
         return "库存不足。"
+    self_loss = _record_owner_consumption(state, profile, 1, charge_service=True)
     trend = _add_alcohol(state, profile["units"])
     state["session"]["owner_drinks"].append(profile["name"])
     profile["source"]["history"].append(
@@ -4378,7 +4925,15 @@ def _cmd_drink(state: Dict[str, Any], args: List[str]) -> str:
     if args[0] in state.get("house_recipes", {}):
         recipe = state["house_recipes"][args[0]]
         recipe["tastings"] = int(recipe.get("tastings", 0)) + 1
-    return _owner_tasting(state, profile) + "\n" + _body_line(state, trend)
+    return (
+        "酒精结构：%s\n老板自饮损耗%d点（已扣1杯库存，并支付本杯耗材）。\n%s\n%s"
+        % (
+            _strength_text(profile),
+            self_loss,
+            _owner_tasting(state, profile),
+            _body_line(state, trend),
+        )
+    )
 
 
 def _cmd_cheers_user(state: Dict[str, Any], args: List[str]) -> str:
@@ -4389,6 +4944,19 @@ def _cmd_cheers_user(state: Dict[str, Any], args: List[str]) -> str:
         return "当前调不出这杯酒。"
     if not _consume(state, profile, 2):
         return "这款酒不够倒两杯。"
+    service_loss = _service_cost(profile, 2)
+    _cash_change(
+        state,
+        -service_loss,
+        "老板与用户共饮%s的冰、辅料、杯具清洁与损耗" % profile["name"],
+        "spend",
+    )
+    owner_loss = _record_owner_consumption(
+        state, profile, 1, charge_service=False
+    )
+    state["session"]["hospitality_loss"] = int(
+        state["session"].get("hospitality_loss", 0)
+    ) + _liquid_cost(profile, 1) + _service_cost(profile, 1)
     user_likes = set(args[1].split(",")) if len(args) > 1 else set()
     trend = _add_alcohol(state, profile["units"])
     state["session"]["owner_drinks"].append(profile["name"] + "（与用户共饮）")
@@ -4408,8 +4976,16 @@ def _cmd_cheers_user(state: Dict[str, Any], args: List[str]) -> str:
         )
     )
     return (
-        "🥂 我把%s分成两杯，和用户碰杯。\n%s\n%s\n%s"
-        % (profile["name"], _owner_tasting(state, profile), user_line, _body_line(state, trend))
+        "🥂 我把%s分成两杯，和用户碰杯。\n酒精结构：%s\n"
+        "老板这一杯计入自饮损耗%d点；用户招待杯另计招待损耗。\n%s\n%s\n%s"
+        % (
+            profile["name"],
+            _strength_text(profile),
+            owner_loss,
+            _owner_tasting(state, profile),
+            user_line,
+            _body_line(state, trend),
+        )
     )
 
 
@@ -5022,6 +5598,25 @@ def _cmd_report(state: Dict[str, Any], args: List[str]) -> str:
     ]
     lines = [
         "【本次经营简报】",
+        "营业时段：%s季·%s｜天气：%s｜当季主推%s"
+        % (
+            SEASONS.get(
+                session.get("season") or state.get("season", "spring"),
+                SEASONS["spring"],
+            )["name"],
+            session.get("opening_time") or "尚未开门",
+            session.get("weather") or "未记录",
+            SEASONS.get(
+                session.get("season") or state.get("season", "spring"),
+                SEASONS["spring"],
+            )["pitch"],
+        ),
+        "当晚主推酒款：%s"
+        % (
+            "、".join(session.get("featured_drinks", []))
+            if session.get("featured_drinks")
+            else "尚未生成"
+        ),
         "收入%d点｜支出%d点｜净变化%+d点｜当前资金%d点（%s）"
         % (
             session["revenue"],
@@ -5030,6 +5625,16 @@ def _cmd_report(state: Dict[str, Any], args: List[str]) -> str:
             state["cash"],
             _financial_health(state),
         ),
+        "老板自饮损耗：%d杯｜酒液库存成本%d点｜自饮耗材%d点｜合计%d点"
+        "（酒液已在进货时入账，此处单列、不重复扣现金）"
+        % (
+            int(session.get("owner_self_servings", 0)),
+            int(session.get("owner_self_liquid_loss", 0)),
+            int(session.get("owner_self_service_loss", 0)),
+            int(session.get("owner_self_liquid_loss", 0))
+            + int(session.get("owner_self_service_loss", 0)),
+        ),
+        "用户招待损耗：%d点" % int(session.get("hospitality_loss", 0)),
         "声誉%d/100｜本次评价：%d条"
         % (state.get("reputation", 50), len(session.get("reviews", []))),
         "遇见：%s" % ("、".join(guest_names) if guest_names else "暂无特别来客"),
@@ -5206,6 +5811,10 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _cmd_serve(state, args, True)
     if name == "recommend":
         return _cmd_recommend(state, args)
+    if name == "ask_taste":
+        return _cmd_ask_taste(state, args)
+    if name == "bargain":
+        return _cmd_bargain(state, args)
     if name == "drink":
         return _cmd_drink(state, args)
     if name == "cheers_user":
