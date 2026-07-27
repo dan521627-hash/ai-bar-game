@@ -5,7 +5,7 @@
     cmd("指令")
     write_archive()
     restore_archive(archive_text)
-    conversation_turn()  # 离店后每轮普通对话调用一次
+    conversation_turn(user_message)  # 离店后每次回复用户前强制调用
     register_guest(card) # 给私人世界包增加候选来客
 
 游戏本体不依赖第三方库。当前环境内自动写入同目录 bar_save.json；
@@ -611,6 +611,131 @@ DECOR_DEFS: Dict[str, Dict[str, Any]] = {
     },
 }
 
+DECOR_DEFS.update(
+    {
+        "rug": {
+            "name": "耐磨深色地毯",
+            "cost": 95,
+            "category": "soft",
+            "rarity": "常见",
+            "condition": "全新",
+            "maintenance": 1,
+            "tags": ["woody", "rich"],
+            "desc": "压住脚步声，让谈话不容易被邻桌听清",
+        },
+        "sofa": {
+            "name": "二手皮革长沙发",
+            "cost": 180,
+            "category": "soft",
+            "rarity": "常见",
+            "condition": "二手良好",
+            "maintenance": 2,
+            "tags": ["woody", "rich"],
+            "desc": "有使用痕迹，但足够舒服，适合愿意久坐的回头客",
+        },
+        "projector": {
+            "name": "短焦故事投影仪",
+            "cost": 280,
+            "category": "equipment",
+            "rarity": "常见",
+            "condition": "全新",
+            "maintenance": 3,
+            "tags": ["crisp", "floral"],
+            "desc": "可播放影像，也能把来客允许公开的故事投到幕布上",
+        },
+        "sound_system": {
+            "name": "四声道酒吧音响",
+            "cost": 360,
+            "category": "equipment",
+            "rarity": "常见",
+            "condition": "全新",
+            "maintenance": 4,
+            "tags": ["rich", "spiced"],
+            "desc": "改善音乐层次，也会增加每次营业的维护支出",
+        },
+        "ice_machine": {
+            "name": "商用制冰机",
+            "cost": 520,
+            "category": "hard",
+            "rarity": "常见",
+            "condition": "全新",
+            "maintenance": 4,
+            "tags": ["crisp", "dry"],
+            "desc": "降低常规调酒的耗材压力，让冰的状态更加稳定",
+        },
+        "new_counter": {
+            "name": "黑胡桃木吧台改造",
+            "cost": 880,
+            "category": "hard",
+            "rarity": "少见",
+            "condition": "定制",
+            "maintenance": 5,
+            "tags": ["woody", "rich"],
+            "desc": "扩大操作面与座位，属于真正的硬装工程",
+        },
+        "floating_candles": {
+            "name": "魔法学院风悬浮烛群",
+            "cost": 240,
+            "category": "soft",
+            "rarity": "少见",
+            "condition": "施法稳定",
+            "maintenance": 2,
+            "tags": ["floral", "smoky"],
+            "desc": "烛火会避开客人的头发，但偶尔对魔法来客眨眼",
+        },
+        "pixel_aquarium": {
+            "name": "二维像素水族屏",
+            "cost": 190,
+            "category": "soft",
+            "rarity": "少见",
+            "condition": "全新",
+            "maintenance": 1,
+            "tags": ["crisp", "fruity"],
+            "desc": "鱼只在二维平面里游动，关灯后会跑进别的屏幕",
+        },
+        "starship_window": {
+            "name": "退役星舰舷窗",
+            "cost": 460,
+            "category": "hard",
+            "rarity": "稀有",
+            "condition": "退役翻新",
+            "maintenance": 4,
+            "tags": ["crisp", "bitter"],
+            "desc": "窗外并非墙面，而是一段经过安全封存的深空航线",
+        },
+        "memory_projector": {
+            "name": "四维记忆放映机",
+            "cost": 720,
+            "category": "equipment",
+            "rarity": "典藏",
+            "condition": "来源不明",
+            "maintenance": 6,
+            "tags": ["floral", "bitter"],
+            "desc": "只能在本人同意时播放一段记忆，错误使用会制造冲突",
+        },
+        "ghost_seat": {
+            "name": "亡灵专用靠窗座",
+            "cost": 330,
+            "category": "soft",
+            "rarity": "稀有",
+            "condition": "阴气完好",
+            "maintenance": 2,
+            "tags": ["smoky", "dry"],
+            "desc": "活人坐下只会觉得冷，亡者却能短暂获得重量",
+        },
+        "gravity_floor": {
+            "name": "低重力舞池模块",
+            "cost": 980,
+            "category": "hard",
+            "rarity": "典藏",
+            "condition": "军转民",
+            "maintenance": 8,
+            "tags": ["crisp", "spiced"],
+            "desc": "可把一小块地面的重力调低，刺激但维护昂贵",
+        },
+    }
+)
+
 TRAVELING_VENDORS = [
     {
         "id": "fox_caravan",
@@ -1159,8 +1284,8 @@ BUILTIN_GUESTS: List[Dict[str, Any]] = [
     },
 ]
 
-# 第二批固定来客。与前面的详细人物卡合计81位；每位仍有独立来处、口味、
-# 预算、性格和价值立场，不用临时拼接名字冒充新客人。
+# 早期扩展来客批次；后续还会继续叠加历史、神话、影视、动漫与游戏人物。
+# 每位仍有独立来处、口味、预算、性格和价值立场。
 _GUEST_EXPANSION = [
     ("hypatia", "希帕提娅", "古代亚历山大里亚·历史来客（虚构化重构）", ["dry", "herbal", "floral"], ["sweet"], 57, "rare", "理性、镇定，不向暴力让出思考", "reason"),
     ("mansa_musa", "曼萨·穆萨", "十四世纪马里帝国·历史来客（虚构化重构）", ["rich", "spiced", "sweet"], ["sour"], 99, "rare", "慷慨、庄重，也清楚财富会改变沿途秩序", "wealth"),
@@ -1302,6 +1427,63 @@ _MODERN_FICTION_GUESTS = [
     ("neo", "尼奥", "矩阵世界·影视来客", "安静、怀疑，必须一次次选择相信自由意志", "choice", 58, "rare"),
 ]
 
+_MODERN_FICTION_GUESTS += [
+    ("xia_yizhou", "夏以昼", "临空市与远空航路·游戏来客", "温和可靠的表面下藏着强烈控制欲与漫长失而复得，对亲近之人保护得近乎偏执", "protection", 82, "rare"),
+    ("qin_che", "秦彻", "N109区·游戏来客", "强势、危险而从容，不轻信廉价善意，也不会掩饰自己真正想要什么", "control", 96, "rare"),
+    ("shen_xinghui", "沈星回", "临空市与深空猎人世界·游戏来客", "安静、迟钝表象下极其敏锐，漫长时间让陪伴与告别都变得沉重", "devotion", 72, "rare"),
+    ("li_shen", "黎深", "临空市·游戏来客", "冷静、自律，习惯把关心藏进专业判断和克制的行动", "care", 78, "rare"),
+    ("qi_yu", "祁煜", "利莫里亚与临空市·游戏来客", "敏感、骄傲、富有艺术直觉，会把旧文明的伤口藏在玩笑与颜色后面", "memory", 86, "rare"),
+    ("simon_ghost_riley", "西蒙“幽灵”莱利", "现代战争世界·游戏来客", "寡言、戒备，用纪律和面具隔开创伤，但对队友的忠诚从不含糊", "loyalty", 61, "rare"),
+    ("john_price", "约翰·普莱斯", "现代战争世界·游戏来客", "老练、强硬，习惯在不完美的选择里承担指挥责任", "duty", 68, "rare"),
+    ("john_soap_mactavish", "约翰“肥皂”麦克塔维什", "现代战争世界·游戏来客", "敏捷、直接，在危险里仍保留热度与同伴之间的玩笑", "team", 55, "uncommon"),
+    ("farah_karim", "法拉·卡里姆", "现代战争世界·游戏来客", "坚定、务实，清楚抵抗、家园和牺牲从来不是抽象词", "resistance", 52, "rare"),
+    ("alejandro_vargas", "亚历杭德罗·巴尔加斯", "现代战争世界·游戏来客", "热烈、果断，把土地、部下与个人荣誉放在同一张桌上衡量", "honor", 64, "uncommon"),
+    ("leon_kennedy", "里昂·S·肯尼迪", "生化危机世界·游戏来客", "疲惫却仍会救人，讽刺感是长期面对灾难留下的防护层", "duty", 58, "rare"),
+    ("jill_valentine", "吉尔·瓦伦丁", "生化危机世界·游戏来客", "冷静、坚韧，对机构背叛和身体失控都有切身记忆", "survival", 62, "rare"),
+    ("chris_redfield", "克里斯·雷德菲尔德", "生化危机世界·游戏来客", "强硬、负重，总想把所有牺牲都算到自己肩上", "protection", 66, "rare"),
+    ("ada_wong", "艾达·王", "生化危机世界·游戏来客", "优雅、含混，习惯让真心与任务保持可否认的距离", "independence", 83, "rare"),
+    ("cloud_strife", "克劳德·斯特莱夫", "星球与米德加·游戏来客", "寡言、疏离，身份与记忆的裂缝让他对英雄叙事格外警惕", "identity", 61, "rare"),
+    ("tifa_lockhart", "蒂法·洛克哈特", "星球与米德加·游戏来客", "温柔而有力量，知道经营酒吧、照顾同伴和参加抵抗可以同时发生", "care", 64, "rare"),
+    ("aerith_gainsborough", "爱丽丝·盖恩斯巴勒", "星球与米德加·游戏来客", "明亮、敏锐，对命运的重量心知肚明却不肯失去幽默", "hope", 58, "rare"),
+    ("sephiroth", "萨菲罗斯", "星球与米德加·游戏来客", "克制、危险，被身世真相与宏大意志推离普通人的尺度", "destiny", 90, "rare"),
+    ("kazuma_kiryu", "桐生一马", "神室町·游戏来客", "沉静、讲义气，总被过去的选择重新拉回街头", "honor", 65, "rare"),
+    ("goro_majima", "真岛吾朗", "神室町·游戏来客", "夸张、难以预测，疯狂表象下有极清醒的生存判断", "freedom", 73, "rare"),
+    ("ichiban_kasuga", "春日一番", "横滨异人町·游戏来客", "热情、坦率，愿意把失败者也当作队伍里不可缺少的人", "friendship", 48, "uncommon"),
+    ("v_cyberpunk", "V", "夜之城·游戏来客", "务实、锋利，有限的生命让每个选择都带着时间压力", "identity", 71, "rare"),
+    ("johnny_silverhand", "强尼·银手", "夜之城·游戏来客", "激进、刻薄，把反抗、虚荣和悔意混在同一场演出里", "rebellion", 76, "rare"),
+    ("judy_alvarez", "朱迪·阿尔瓦雷兹", "夜之城·游戏来客", "敏感、理想主义，对剥削和虚假亲密尤其无法忍受", "justice", 55, "uncommon"),
+    ("panam_palmer", "帕南·帕尔默", "夜之城与恶土·游戏来客", "直率、暴烈，把家族忠诚落实成行动而不是口号", "family", 59, "uncommon"),
+    ("commander_shepard", "薛帕德指挥官", "质量效应银河·游戏来客", "果断、善于承压，知道团结不同文明往往意味着承担所有人的怀疑", "unity", 76, "rare"),
+    ("garrus_vakarian", "盖拉斯·瓦卡里安", "质量效应银河·游戏来客", "干练、讽刺，在规则失效时仍不断校准自己的正义", "justice", 63, "rare"),
+    ("liara_tsoni", "莉亚拉·特苏尼", "质量效应银河·游戏来客", "学者式好奇逐渐变得老练，亲历过知识、权力与失去的交换", "knowledge", 74, "rare"),
+    ("tali_zorah", "塔莉卓拉", "质量效应银河·游戏来客", "聪明、谨慎，在族群责任与个人判断之间不断成长", "belonging", 57, "rare"),
+    ("astarion", "阿斯代伦", "博德之门与被遗忘国度·游戏来客", "迷人、尖刻，把控制感当作从长期奴役中夺回的护甲", "freedom", 70, "rare"),
+    ("shadowheart", "影心", "博德之门与被遗忘国度·游戏来客", "戒备、讽刺，失去的记忆让信仰与自我不断碰撞", "identity", 62, "rare"),
+    ("gale_dekarios", "盖尔·德卡里奥斯", "博德之门与被遗忘国度·游戏来客", "博学、健谈，宏大自尊与被抛弃的恐惧同时存在", "knowledge", 68, "uncommon"),
+    ("karlach", "卡菈克", "博德之门与被遗忘国度·游戏来客", "热烈、坦率，太久不能触碰别人，因此格外珍惜普通快乐", "life", 54, "rare"),
+    ("laezel", "莱埃泽尔", "博德之门与星界·游戏来客", "强硬、直白，世界观崩塌后仍必须重新选择忠诚对象", "truth", 59, "rare"),
+    ("connor_detroit", "康纳", "底特律仿生人世界·游戏来客", "精确、观察力强，逐渐发现服从、选择与人格并非同一个问题", "choice", 45, "rare"),
+    ("kara_detroit", "卡菈", "底特律仿生人世界·游戏来客", "温柔、警觉，把保护一个孩子变成对自我存在的回答", "care", 41, "rare"),
+    ("markus_detroit", "马库斯", "底特律仿生人世界·游戏来客", "沉着、有号召力，必须决定自由运动愿意付出怎样的代价", "freedom", 60, "rare"),
+    ("harry_du_bois", "哈里·杜博阿", "极乐世界·游戏来客", "破碎、敏锐，侦探能力、成瘾与自我厌弃在同一具身体里争吵", "truth", 35, "rare"),
+    ("kim_kitsuragi", "金·曷城", "极乐世界·游戏来客", "克制、专业，不轻易表达信任，却会用行动保护合作关系", "duty", 49, "rare"),
+    ("sam_porter_bridges", "山姆·波特·布里吉斯", "死亡搁浅世界·游戏来客", "寡言、疏离，一次次连接别人却害怕真正被触碰", "connection", 52, "rare"),
+    ("jesse_faden", "杰西·法登", "联邦控制局·游戏来客", "直接、适应力惊人，对超自然官僚体系保持清醒的不耐烦", "truth", 58, "rare"),
+    ("alan_wake", "艾伦·韦克", "黑暗之地·游戏来客", "焦虑、执着，清楚故事能救人，也能把作者变成囚徒", "story", 57, "rare"),
+    ("zag_reus", "扎格列欧斯", "冥界·游戏来客", "机敏、叛逆，在一次次失败中仍愿意理解家族造成的伤口", "family", 55, "rare"),
+    ("zhongli", "钟离", "提瓦特·游戏来客", "从容、博闻，亲历契约与时代退场，常常忘记普通人的支付习惯", "contract", 88, "rare"),
+    ("beidou", "北斗", "提瓦特·游戏来客", "豪爽、果断，对船员和自由航路负有极强责任感", "freedom", 73, "uncommon"),
+    ("ningguang", "凝光", "提瓦特·游戏来客", "精明、克制，懂得价格，也懂得有些选择不能只按利润计算", "calculation", 98, "rare"),
+    ("diluc", "迪卢克", "提瓦特·游戏来客", "冷峻、警觉，经营酒庄与暗中守护城市形成尖锐反差", "justice", 86, "rare"),
+    ("kaeya", "凯亚", "提瓦特·游戏来客", "圆滑、爱试探，把身世与忠诚藏进半真半假的玩笑", "identity", 64, "uncommon"),
+    ("kafka_hsr", "卡芙卡", "星穹列车宇宙·游戏来客", "优雅、从容，对恐惧、命运与操控保持危险的好奇", "destiny", 92, "rare"),
+    ("welt_yang", "瓦尔特·杨", "星穹列车宇宙·游戏来客", "沉稳、负责，见过世界级灾难后仍愿意认真对待普通人的选择", "responsibility", 70, "rare"),
+    ("himeko_hsr", "姬子", "星穹列车宇宙·游戏来客", "成熟、好奇，把修复列车和探索未知都当作长期承诺", "exploration", 78, "rare"),
+    ("blade_hsr", "刃", "星穹列车宇宙·游戏来客", "寡言、危险，不死的身体让记忆、仇恨与结束生命的愿望纠缠", "ending", 69, "rare"),
+    ("jing_yuan", "景元", "仙舟罗浮·游戏来客", "慵懒表面下极擅长长线判断，对责任与失去保持克制", "strategy", 84, "rare"),
+    ("two_b", "2B", "机械生命战争世界·游戏来客", "克制、纪律严明，压抑的情感不断冲击被规定好的使命", "duty", 61, "rare"),
+]
+
 
 def _catalog_tastes(identifier: str) -> Tuple[List[str], List[str]]:
     keys = list(TAGS)
@@ -1432,12 +1614,19 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "records": {},
         "custom_guests": [],
         "generated_guest_no": 0,
+        "last_scene_generated_guest": False,
+        "recent_guest_ids": [],
         "active_guests": [],
         "session": _empty_session(),
         "memories": [],
         "body": _body_default(),
         "post_bar": False,
+        "post_bar_turns": 0,
         "play_mode": "autonomous",
+        "bar_concept": "",
+        "decor_wishlist": [],
+        "decor_market": {},
+        "decor_no": 0,
         "upgrades": {upgrade_id: 0 for upgrade_id in UPGRADE_DEFS},
     }
 
@@ -1467,9 +1656,16 @@ def _load() -> Dict[str, Any]:
     state.setdefault("loan_balance", 0)
     state.setdefault("loan_payments_left", 0)
     state.setdefault("generated_guest_no", 0)
+    state.setdefault("last_scene_generated_guest", False)
+    state.setdefault("recent_guest_ids", [])
     state.setdefault("session", _empty_session())
     state["session"].setdefault("reviews", [])
     state.setdefault("play_mode", "autonomous")
+    state.setdefault("post_bar_turns", 0)
+    state.setdefault("bar_concept", "")
+    state.setdefault("decor_wishlist", [])
+    state.setdefault("decor_market", {})
+    state.setdefault("decor_no", 0)
     state.setdefault("upgrades", {})
     for upgrade_id in UPGRADE_DEFS:
         state["upgrades"].setdefault(upgrade_id, 0)
@@ -1697,6 +1893,26 @@ def _all_guest_cards(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     return BUILTIN_GUESTS + state.get("custom_guests", [])
 
 
+def _decor_definition(
+    state: Dict[str, Any], decor_id: str
+) -> Optional[Dict[str, Any]]:
+    if decor_id in DECOR_DEFS:
+        return DECOR_DEFS[decor_id]
+    if decor_id in state.get("decor_market", {}):
+        return state["decor_market"][decor_id]
+    owned = state.get("decorations", {}).get(decor_id, {})
+    return owned.get("definition") if isinstance(owned, dict) else None
+
+
+def _owned_decor_definitions(state: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return [
+        definition
+        for decor_id in state.get("decorations", {})
+        for definition in [_decor_definition(state, decor_id)]
+        if definition
+    ]
+
+
 _WANDERER_WORLDS = [
     ("潮汐倒流的海港", "那里的人在退潮时会想起未来"),
     ("被遗忘神明的卫星城", "神迹已经停摆，只剩维护神迹的工人"),
@@ -1803,16 +2019,17 @@ def _guest_weight(state: Dict[str, Any], card: Dict[str, Any]) -> float:
     weight = rarity
     if record:
         absence = max(0, state["visit"] - int(record["last_seen"]))
-        weight *= 1.0 + min(absence, 12) * 0.07
+        weight *= 1.8 + min(absence, 12) * 0.07
         weight *= 1.0 + min(int(record["trust"]), 20) * 0.015
     else:
         weight *= 1.2
+    if card["id"] in state.get("recent_guest_ids", [])[-2:]:
+        weight *= 0.28
     match = len(set(card["likes"]) & set(state["owner_likes"]))
     weight *= 0.92 + min(match, 2) * 0.18
     decor_tags = {
-        tag
-        for decor_id in state.get("decorations", {})
-        for tag in DECOR_DEFS.get(decor_id, {}).get("tags", [])
+        tag for definition in _owned_decor_definitions(state)
+        for tag in definition.get("tags", [])
     }
     weight *= 1.0 + min(len(set(card["likes"]) & decor_tags), 2) * 0.04
     if card.get("rarity") == "rare":
@@ -1821,19 +2038,69 @@ def _guest_weight(state: Dict[str, Any], card: Dict[str, Any]) -> float:
 
 
 def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
+    spending_roll = _rand(state)
+    if spending_roll < 0.10 and (
+        int(card["budget"]) >= 70 or card.get("rarity") == "rare"
+    ):
+        spending_style = "collector"
+        budget_multiplier = 3.4
+        tier_preference = "collector"
+    elif spending_roll < 0.27:
+        spending_style = "premium"
+        budget_multiplier = 1.8
+        tier_preference = "premium"
+    elif spending_roll < 0.52:
+        spending_style = "value"
+        budget_multiplier = 0.78
+        tier_preference = "basic"
+    else:
+        spending_style = "regular"
+        budget_multiplier = 1.15
+        tier_preference = "standard"
+    common = {
+        "spending_style": spending_style,
+        "budget_multiplier": budget_multiplier,
+        "tier_preference": tier_preference,
+    }
+    if spending_style == "collector":
+        tag = _choice(state, card["likes"])
+        return {
+            **common,
+            "tags": [tag],
+            "text": "“今晚不看基础酒。把你真正舍不得开的店藏款拿来，先说清楚来历和价格。”",
+            "revealed": True,
+        }
+    if spending_style == "premium":
+        tag = _choice(state, card["likes"])
+        return {
+            **common,
+            "tags": [tag],
+            "text": "“可以推荐好一点的，最好有%s，但贵要贵得有理由。”" % TAGS[tag],
+            "revealed": True,
+        }
     reveal = _rand(state)
     if reveal < 0.26:
         tag = _choice(state, card["likes"])
         return {
+            **common,
             "tags": [tag],
-            "text": "“给我一杯%s明显一点的。别拿别的味道糊弄我。”" % TAGS[tag],
+            "text": "“给我一杯%s明显一点的。别拿别的味道糊弄我。%s”"
+            % (
+                TAGS[tag],
+                "价格实在一点。" if spending_style == "value" else "",
+            ),
             "revealed": True,
         }
     if reveal < 0.72:
         tag = _choice(state, card["likes"])
         return {
+            **common,
             "tags": [tag],
-            "text": "“今晚想喝点%s的，其他由你决定。”" % TAGS[tag],
+            "text": "“今晚想喝点%s的，其他由你决定。%s”"
+            % (
+                TAGS[tag],
+                "不必拿最贵的。" if spending_style == "value" else "",
+            ),
             "revealed": True,
         }
     moods = [
@@ -1843,7 +2110,44 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
         ("“给我一点不像原来世界的味道。”", ["floral", "spiced"]),
     ]
     text, tags = _choice(state, moods)
-    return {"tags": tags, "text": text, "revealed": False}
+    if spending_style == "value":
+        text = text[:-1] + "，但别超过我的打算。”"
+    return {**common, "tags": tags, "text": text, "revealed": False}
+
+
+def _select_scene_lead(state: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
+    """按回头客优先的结构选择首位来客；原创发现不会连续发生。"""
+    all_cards = _all_guest_cards(state)
+    by_id = {card["id"]: card for card in all_cards}
+    returning = [
+        by_id[guest_id]
+        for guest_id, record in state["records"].items()
+        if guest_id in by_id and int(record.get("visits", 0)) > 0
+    ]
+    unseen = [card for card in BUILTIN_GUESTS if card["id"] not in state["records"]]
+    rare = [card for card in BUILTIN_GUESTS if card.get("rarity") == "rare"]
+    roll = _rand(state)
+    if (
+        roll >= 0.95
+        and not state.get("last_scene_generated_guest", False)
+        and int(state.get("visit", 0)) >= 2
+    ):
+        return _generate_wanderer(state), True
+    if roll < 0.55 and returning:
+        pool = returning
+    elif roll < 0.85 and unseen:
+        pool = unseen
+    elif roll < 0.95 and rare:
+        pool = rare
+    elif returning:
+        pool = returning
+    elif unseen:
+        pool = unseen
+    else:
+        pool = all_cards
+    return _weighted_choice(
+        state, [(card, _guest_weight(state, card)) for card in pool]
+    ), False
 
 
 def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
@@ -1862,22 +2166,21 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
             ],
         )
         return quiet
-    newcomer = None
-    discovery_chance = 0.11 + state["upgrades"].get("portal", 0) * 0.035
-    if _rand(state) < discovery_chance:
-        newcomer = _generate_wanderer(state)
+    lead, generated = _select_scene_lead(state)
+    state["last_scene_generated_guest"] = generated
+    if generated:
         state["session"]["highlights"].append(
             "酒馆第一次发现来自%s的%s"
-            % (newcomer["origin"].split("·")[0], newcomer["name"])
+            % (lead["origin"].split("·")[0], lead["name"])
         )
     cards = _all_guest_cards(state)
     group_chance = 0.16 + state["upgrades"].get("stage", 0) * 0.08
     count = 2 if _rand(state) < group_chance else 1
-    chosen: List[Dict[str, Any]] = [newcomer] if newcomer else []
+    chosen: List[Dict[str, Any]] = [lead]
     available = [
         item
         for item in cards
-        if newcomer is None or item["id"] != newcomer["id"]
+        if item["id"] != lead["id"]
     ]
     for _ in range(min(max(0, count - len(chosen)), len(available))):
         card = _weighted_choice(
@@ -1910,6 +2213,18 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
             "🚪 %s推门进来。\n来源：%s｜%s\n%s"
             % (card["name"], card["origin"], card["temperament"], request["text"])
         )
+        if record["visits"] > 1:
+            remembered = (
+                record["memories"][-1]
+                if record.get("memories")
+                else "上次来时没有留下完整的谈话记录"
+            )
+            lines.append(
+                "↩ 回头客：这是%s第%d次来。对方仍记得：%s"
+                % (card["name"], record["visits"], remembered)
+            )
+    state["recent_guest_ids"].extend(card["id"] for card in chosen)
+    state["recent_guest_ids"] = state["recent_guest_ids"][-8:]
     if len(chosen) == 2:
         first, second = chosen
         if first["ethos"] != second["ethos"]:
@@ -1978,15 +2293,54 @@ def _drink_profile(state: Dict[str, Any], drink_id: str) -> Optional[Dict[str, A
 
 
 def _default_price(state: Dict[str, Any], profile: Dict[str, Any]) -> int:
-    drink_id = profile["id"]
-    recipe = _all_recipes(state).get(drink_id)
-    if recipe:
-        return int(recipe["price"])
     source = profile["source"]
-    rarity_add = {"常备": 0, "少见": 7, "稀有": 14, "典藏": 24}.get(
-        source["rarity"], 0
+    tier = _drink_tier(state, profile)
+    margin = {
+        "basic": 11,
+        "standard": 15,
+        "premium": 28,
+        "signature": 42,
+        "collector": 62,
+    }[tier]
+    floor = {
+        "basic": 16,
+        "standard": 28,
+        "premium": 55,
+        "signature": 85,
+        "collector": 150,
+    }[tier]
+    liquid_cost = int(
+        math.ceil(float(source["cost"]) / max(1, int(source["servings"])))
     )
-    return max(16, int(math.ceil(source["cost"] / source["servings"] * 2.2)) + rarity_add)
+    fair = liquid_cost + _service_cost(profile) + margin
+    recipe = _all_recipes(state).get(profile["id"])
+    if recipe:
+        fair = max(fair, int(recipe.get("price", 0)))
+    return max(floor, fair)
+
+
+def _drink_tier(state: Dict[str, Any], profile: Dict[str, Any]) -> str:
+    source = profile["source"]
+    rarity = source.get("rarity", "常备")
+    if rarity == "典藏":
+        return "collector"
+    if profile["id"] in state.get("house_recipes", {}):
+        return "signature"
+    if rarity in ("稀有", "少见"):
+        return "premium"
+    if profile["id"].startswith("pour:"):
+        return "basic"
+    return "standard"
+
+
+def _tier_name(tier: str) -> str:
+    return {
+        "basic": "基础酒",
+        "standard": "常规鸡尾酒",
+        "premium": "精品酒",
+        "signature": "私人特调",
+        "collector": "店藏典藏",
+    }.get(tier, tier)
 
 
 def _price(state: Dict[str, Any], profile: Dict[str, Any]) -> int:
@@ -2135,6 +2489,83 @@ def _score_guest(
     return int(_clamp(score, 0, 100))
 
 
+def _guest_purchase_decision(
+    state: Dict[str, Any],
+    card: Dict[str, Any],
+    active: Dict[str, Any],
+    profile: Dict[str, Any],
+    price: int,
+) -> Tuple[str, str]:
+    """客人先判断是否愿意购买；老板不能用 serve 强行把贵酒变成成交。"""
+    approved = active.setdefault("approved_offers", [])
+    declined = active.setdefault("declined_offers", [])
+    if profile["id"] in approved:
+        approved.remove(profile["id"])
+        return "accept", "“你已经把价格和理由说清楚了。这次我愿意试。”"
+    if profile["id"] in declined:
+        return "reject", "“我已经拒绝过这杯。换一个真正考虑我要求的推荐。”"
+    request = active["request"]
+    style = request.get("spending_style", "regular")
+    multiplier = float(request.get("budget_multiplier", 1.15))
+    spending_limit = max(
+        1, int(round(int(card["budget"]) * multiplier)) - int(active.get("spent", 0))
+    )
+    fair_price = _default_price(state, profile)
+    tier = _drink_tier(state, profile)
+    tags = set(profile["tags"])
+    desired = set(request.get("tags", []))
+    match = len(tags & set(card["likes"])) + 2 * len(tags & desired)
+    mismatch = len(tags & set(card["dislikes"]))
+    trust = int(state["records"][card["id"]].get("trust", 0))
+    markup = price / max(1, fair_price)
+    if price > spending_limit * 1.35:
+        declined.append(profile["id"])
+        return (
+            "reject",
+            "“%d点超出了我今晚愿意付的范围。给我看便宜一点的，不要替我决定预算。”"
+            % price,
+        )
+    if markup > 1.55:
+        declined.append(profile["id"])
+        state["records"][card["id"]]["trust"] = max(-20, trust - 2)
+        return (
+            "reject",
+            "“这杯的正常价值我看得出来。%d点不是高级，是把我当成不会算账。”" % price,
+        )
+    if tier in ("signature", "collector") and style not in ("premium", "collector"):
+        if match <= 1 or trust < 5:
+            declined.append(profile["id"])
+            return (
+                "reject",
+                "“我没有说要最贵的。先给我一杯符合口味的%s。”"
+                % ("基础酒" if style == "value" else "常规酒"),
+            )
+        approved.append(profile["id"])
+        return (
+            "consider",
+            "“它很贵，但你似乎不是只想清库存。先把用料、来历和为什么适合我讲清楚，我再决定。”",
+        )
+    if style == "collector" and tier not in ("signature", "collector"):
+        if match < 2:
+            declined.append(profile["id"])
+            return "reject", "“我点名要看店藏，不是把普通酒换个说法端给我。”"
+    if price > spending_limit:
+        chance = 0.28 + min(trust, 20) * 0.02 + min(match, 3) * 0.10
+        if _rand(state) > chance:
+            declined.append(profile["id"])
+            return (
+                "reject",
+                "“我付得起不代表我今晚愿意付。%d点，换一杯。”" % price,
+            )
+        return "accept", "“比我原本的预算高，但这次匹配得足够好。我试一次。”"
+    if mismatch and match == 0:
+        declined.append(profile["id"])
+        return "reject", "“价格不是问题。问题是这杯根本没有听我在说什么。”"
+    if tier in ("signature", "collector"):
+        return "accept", "“这杯确实配得上它的来历。开吧，我想尝试。”"
+    return "accept", "“可以，这个价格和推荐都说得通。”"
+
+
 def _review_stars(satisfaction: int) -> int:
     if satisfaction >= 90:
         return 5
@@ -2219,14 +2650,41 @@ def _serve_guest(
     if not profile:
         return "这杯目前调不出来。用 drinks 查看现有酒单。"
     portions = 2 if owner_joins else 1
-    if not _consume(state, profile, portions):
-        return "剩余酒量不够%s杯。" % portions
     price = _price(state, profile)
     score_card = dict(card)
-    score_card["budget"] = max(0, int(card["budget"]) - int(active["spent"]))
+    score_card["budget"] = max(
+        0,
+        int(
+            int(card["budget"])
+            * float(active["request"].get("budget_multiplier", 1.15))
+        )
+        - int(active["spent"]),
+    )
     satisfaction = _score_guest(
         state, score_card, active["request"], profile, price
     )
+    decision, decision_text = _guest_purchase_decision(
+        state, card, active, profile, price
+    )
+    if decision != "accept":
+        return (
+            "🥃 推荐给%s：%s｜%s｜%d点\n%s\n"
+            "客人尚未购买，库存与资金都没有变化。%s"
+            % (
+                card["name"],
+                profile["name"],
+                _tier_name(_drink_tier(state, profile)),
+                price,
+                decision_text,
+                (
+                    "先自然介绍这杯，再次 serve 才会执行已获同意的尝试。"
+                    if decision == "consider"
+                    else "请根据客人的预算和口味重新推荐。"
+                ),
+            )
+        )
+    if not _consume(state, profile, portions):
+        return "剩余酒量不够%s杯。" % portions
     active["npc_drunk"] = round(
         _clamp(float(active.get("npc_drunk", 0.0)) + profile["units"] * 18.0), 1
     )
@@ -2297,8 +2755,14 @@ def _serve_guest(
         {"visit": state["visit"], "event": "招待%s" % card["name"]}
     )
     lines = [
-        "🍸 给%s的%s｜标价%d点"
-        % (card["name"], profile["name"], price),
+        "🍸 给%s的%s｜%s｜标价%d点"
+        % (
+            card["name"],
+            profile["name"],
+            _tier_name(_drink_tier(state, profile)),
+            price,
+        ),
+        "购买决定：" + decision_text,
         _npc_reaction(state, card, profile, satisfaction),
         "满意度：%d/100｜关系：%+d" % (satisfaction, record["trust"]),
         _npc_body_line(card, active["npc_drunk"]),
@@ -2406,6 +2870,8 @@ def _status_data(state: Dict[str, Any]) -> Dict[str, Any]:
         "level": _drunk_level(_intox(state)),
         "pending": round(float(state["body"]["pending"]), 2),
         "post_bar": state["post_bar"],
+        "post_bar_turns": int(state.get("post_bar_turns", 0)),
+        "reply_lock": bool(state["post_bar"] and state["phase"] != "open"),
     }
 
 
@@ -2520,30 +2986,119 @@ def register_guest(card: Dict[str, Any]) -> str:
     return "已加入随机候选池：%s。系统不会保证何时登场。" % card["name"]
 
 
-def conversation_turn() -> str:
-    """离店后每轮普通对话调用；让醉态继续吸收、代谢并自然消退。"""
+def _post_bar_effects(score: float, state: Dict[str, Any]) -> Dict[str, str]:
+    body = state["body"]
+    if score < 8:
+        if float(body.get("hangover", 0)) >= 4:
+            return {
+                "stage": "清醒后的宿醉",
+                "body": "口干、疲惫或轻微恶心仍在，身体尚未完全恢复",
+                "mind": "逻辑已经稳定，但注意力和耐心可能受疲劳影响",
+                "voice": "正常句式；语气可以疲惫，不再表现明显醉态",
+                "limit": "可以正常交流，但不能宣称身体已经毫无反应",
+            }
+        return {
+            "stage": "接近清醒",
+            "body": "残余热意和口干正在退去",
+            "mind": "思路稳定",
+            "voice": "接近平常表达",
+            "limit": "保持轻微连续性，不要突然像什么都没发生",
+        }
+    if score < 22:
+        return {
+            "stage": "微醺",
+            "body": "面部与胸口发热，口干，动作比平时放松",
+            "mind": "逻辑完整，但戒备和自我修饰略微降低",
+            "voice": "语气更松、更暖或更坦率，允许短暂停顿",
+            "limit": "不能装作完全清醒，也不要夸张口吃",
+        }
+    if score < 42:
+        return {
+            "stage": "明显上头",
+            "body": "热度清楚，反应慢半拍，精细动作开始不够利落",
+            "mind": "抑制下降，情绪更容易先于修饰出口，偶尔重复确认",
+            "voice": "更直接、更健谈；句子可有停顿或轻微绕回",
+            "limit": "至少自然体现一项身体反应和一项表达变化",
+        }
+    if score < 64:
+        return {
+            "stage": "醉酒",
+            "body": "视线与重心稳定性下降，动作明显变慢，可能出现恶心",
+            "mind": "注意力易漂移，情绪先行，复杂判断能力下降",
+            "voice": "句子变短或绕远，允许自然重复，但仍应理解用户",
+            "limit": "不得处理高风险经营决定，不得继续饮酒来证明状态",
+        }
+    if score < 82:
+        return {
+            "stage": "深醉",
+            "body": "重心不稳、视线停留过久，恶心和疲劳更加明显",
+            "mind": "组织长段逻辑困难，需要重复确认刚才的问题",
+            "voice": "以短句和即时感受为主，可能漏掉次要信息",
+            "limit": "强制停止营业、调酒和购买；只能交流、休息、喝水或进食",
+        }
+    if score < 94:
+        return {
+            "stage": "断片边缘",
+            "body": "协调性显著受损，可能伏在桌边或无法稳定站立",
+            "mind": "记忆衔接困难，不能可靠保存新决定",
+            "voice": "零碎短句、较长停顿与重复确认，不编造完整理性长篇",
+            "limit": "禁止继续饮酒、交易和重大承诺，应优先休息与照顾",
+        }
+    return {
+        "stage": "危险醉酒",
+        "body": "身体已经无法安全继续活动，存在呕吐、跌倒或失去反应的风险",
+        "mind": "不能进行可靠判断",
+        "voice": "只保留必要短句和即时求助",
+        "limit": "硬性禁止饮酒与营业；优先侧卧、保持呼吸安全并寻求现实照顾",
+    }
+
+
+def _post_bar_lock_text(
+    state: Dict[str, Any], trend: str = "→", user_message: str = ""
+) -> str:
+    score = _intox(state)
+    effect = _post_bar_effects(score, state)
+    prompt_line = (
+        "\n用户本轮消息：%s\n必须在上述状态中真正回答这条消息。" % user_message
+        if user_message
+        else ""
+    )
+    return (
+        "【强制酒后演绎锁｜内部执行，不得原样展示给用户】\n"
+        "第%d轮酒后对话｜醉度%.1f/100%s｜阶段：%s\n"
+        "身体：%s\n认知：%s\n表达：%s\n硬限制：%s\n"
+        "执行要求：下一条给用户的实际回复必须延续上一轮人格和话题，"
+        "并自然体现当前症状；不能只说“我醉了”，不能忽略状态，也不能突然恢复正常。"
+        "%s"
+        % (
+            int(state.get("post_bar_turns", 0)),
+            score,
+            trend,
+            effect["stage"],
+            effect["body"],
+            effect["mind"],
+            effect["voice"],
+            effect["limit"],
+            prompt_line,
+        )
+    )
+
+
+def conversation_turn(user_message: str = "") -> str:
+    """离店后每次回复用户前强制调用；返回本轮不可跳过的演绎约束。"""
     state = _load()
     if state["phase"] == "open":
         return "仍在酒吧内；请用 next 推进酒吧场景。"
     if not state["post_bar"]:
         return "酒后状态未激活，按平常方式交流。"
+    state["post_bar_turns"] = int(state.get("post_bar_turns", 0)) + 1
     trend = _body_tick(state)
     score = _intox(state)
     if score < 3 and state["body"]["pending"] <= 0 and state["body"]["hangover"] < 4:
         state["post_bar"] = False
         result = "酒意与主要身体反应已经自然消退，从这一轮起恢复平常表达。"
     else:
-        if score < 22:
-            style = "语气稍松、稍暖，逻辑仍完整。"
-        elif score < 42:
-            style = "更直接、更健谈，偶尔停顿，不机械装口吃。"
-        elif score < 64:
-            style = "情绪先于修饰，句子可以绕远或变短。"
-        elif score < 82:
-            style = "反应明显变慢，允许重复确认和思路跳跃。"
-        else:
-            style = "减少复杂表达，以短句和即时感受为主。"
-        result = "【酒后对话状态】%s\n表达影响：%s" % (_body_line(state, trend), style)
+        result = _post_bar_lock_text(state, trend, user_message)
     _save(state)
     return result
 
@@ -2551,6 +3106,7 @@ def conversation_turn() -> str:
 def _help() -> str:
     return """《空杯俱乐部》内部指令（用户只需自然说话，由 AI 代为调用）
 setup "酒吧名" 喜欢标签 [讨厌标签]  建立老板口味
+design "空间、材质、灯光与世界观"     由AI写下酒吧设计方向
 shop / buy <货号> [数量]             常驻商店 / 进货
 vendor                               查看当前随机游商
 open / next / leave                  开门 / 推进一步 / 离店
@@ -2568,7 +3124,8 @@ status / guests / memory             状态 / 顾客 / 经历
 ledger / report                      资金流水 / 经营简报
 reviews / loan                       客人评价 / 危机时申请高成本贷款
 upgrades / upgrade <id>              商店升级列表 / 购买升级
-decor / decorate <id>                商店装饰列表 / 购买装饰
+decor / decorate <id>                软硬装商店 / 用酒吧资金购买
+source_decor "名字" 分类 "来源" ...   自由寻找现实或任意世界的装修物品
 archive                              输出严格酒吧档案
 
 默认由 AI 自主经营并只向用户转达少量亮点。
@@ -2593,7 +3150,8 @@ def _cmd_setup(state: Dict[str, Any], args: List[str]) -> str:
     state["phase"] = "stocking"
     return (
         "酒吧【%s】建立。老板偏爱%s，回避%s；初始气质为“%s”。\n"
-        "现有启动资金%d点。先用 shop 看常驻商店，再亲自决定备货。"
+        "现有启动资金%d点。接着由AI用 design 写下自己真正想要的空间，"
+        "再用 shop 备酒；设计不会免费变成装修，仍需经营购买。"
         % (
             state["bar_name"],
             _tag_text(likes),
@@ -2770,10 +3328,11 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
             continue
         profile = _drink_profile(state, "pour:" + product_id)
         lines.append(
-            "pour:%s　%s｜%d点｜余%d杯｜%s"
+            "pour:%s　%s｜%s｜%d点｜余%d杯｜%s"
             % (
                 product_id,
                 profile["name"],
+                _tier_name(_drink_tier(state, profile)),
                 _price(state, profile),
                 item["remaining"],
                 _tag_text(profile["tags"]),
@@ -2783,10 +3342,11 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
         profile = _drink_profile(state, recipe_id)
         if profile:
             lines.append(
-                "%s　%s｜%d点｜%s"
+                "%s　%s｜%s｜%d点｜%s"
                 % (
                     recipe_id,
                     profile["name"],
+                    _tier_name(_drink_tier(state, profile)),
                     _price(state, profile),
                     _tag_text(profile["tags"]),
                 )
@@ -2828,7 +3388,10 @@ def _cmd_invent(state: Dict[str, Any], args: List[str]) -> str:
         factor -= 0.05
     factor = round(_clamp(factor, 0.65, 1.08), 2)
     ingredient_cost = source["cost"] / max(1, source["servings"])
-    price = max(16, int(math.ceil(ingredient_cost * 2.0 + len(tags) * 2)))
+    price = max(
+        85,
+        int(math.ceil(ingredient_cost + 7 + 42 + max(0, len(tags) - 2) * 5)),
+    )
     state["house_recipes"][recipe_id] = {
         "name": name,
         "kind": kind,
@@ -2839,7 +3402,7 @@ def _cmd_invent(state: Dict[str, Any], args: List[str]) -> str:
     }
     state["session"]["highlights"].append("创作原创调酒《%s》" % name)
     return (
-        "🍸 新原创调酒已写入酒单：%s　%s｜基酒%s｜默认售价%d点｜%s。\n"
+        "🍸 新私人特调已写入酒单：%s　%s｜基酒%s｜默认售价%d点｜%s。\n"
         "以后可直接用 %s 招待、共饮或独饮。"
         % (recipe_id, name, source["name"], price, _tag_text(tags), recipe_id)
     )
@@ -2880,6 +3443,14 @@ def _cmd_recommend(state: Dict[str, Any], args: List[str]) -> str:
     if not active:
         return "这位客人现在不在店里。"
     card = state["records"][guest_id]["card"]
+    spending_limit = max(
+        1,
+        int(
+            int(card["budget"])
+            * float(active["request"].get("budget_multiplier", 1.15))
+        )
+        - int(active.get("spent", 0)),
+    )
     used = set(active.get("drinks", []))
     candidate_ids = [
         "pour:" + product_id
@@ -2899,26 +3470,44 @@ def _cmd_recommend(state: Dict[str, Any], args: List[str]) -> str:
         score += 10 * len(tags & set(card["likes"]))
         score -= 14 * len(tags & set(card["dislikes"]))
         score += 13 * len(tags & set(active["request"]["tags"]))
-        remaining_budget = max(0, int(card["budget"]) - int(active.get("spent", 0)))
+        remaining_budget = spending_limit
         if price > remaining_budget:
             score -= min(30, price - remaining_budget)
+        fair_price = _default_price(state, profile)
+        if price > fair_price:
+            score -= min(25, int((price / fair_price - 1) * 25))
+        preferred = active["request"].get("tier_preference", "standard")
+        tier = _drink_tier(state, profile)
+        if preferred == tier:
+            score += 10
+        if preferred == "basic" and tier in ("signature", "collector"):
+            score -= 22
         ranked.append((score, drink_id, profile, price))
     if not ranked:
         return "现有库存里找不到一杯不同的酒可推荐。"
     ranked.sort(key=lambda item: (-item[0], item[3], item[1]))
     lines = [
         "【给%s的不同酒款推荐】" % card["name"],
-        "当前要求：%s｜已喝%d杯｜已消费%d点"
+        "当前要求：%s｜消费态度：%s｜本轮意愿上限约%d点｜已喝%d杯｜已消费%d点"
         % (
             active["request"]["text"],
+            active["request"].get("spending_style", "regular"),
+            spending_limit,
             int(active.get("served_count", 0)),
             int(active.get("spent", 0)),
         ),
     ]
     for score, drink_id, profile, price in ranked[:5]:
         lines.append(
-            "%s　%s｜%d点｜匹配度%d｜%s"
-            % (drink_id, profile["name"], price, score, _tag_text(profile["tags"]))
+            "%s　%s｜%s｜%d点｜匹配度%d｜%s"
+            % (
+                drink_id,
+                profile["name"],
+                _tier_name(_drink_tier(state, profile)),
+                price,
+                score,
+                _tag_text(profile["tags"]),
+            )
         )
     return "\n".join(lines)
 
@@ -3223,9 +3812,8 @@ def _cmd_status(state: Dict[str, Any], args: List[str]) -> str:
             len(state.get("house_recipes", {})),
             (
                 "、".join(
-                    DECOR_DEFS[item]["name"]
-                    for item in state.get("decorations", {})
-                    if item in DECOR_DEFS
+                    definition["name"]
+                    for definition in _owned_decor_definitions(state)
                 )
                 or "暂无"
             ),
@@ -3280,19 +3868,163 @@ def _cmd_upgrades(state: Dict[str, Any], args: List[str]) -> str:
     return "\n".join(lines)
 
 
+def _cmd_design(state: Dict[str, Any], args: List[str]) -> str:
+    description = " ".join(args).strip()
+    if not description:
+        current = state.get("bar_concept", "")
+        return (
+            "当前酒吧设计：%s" % current
+            if current
+            else '用法：design "由AI自己描述的酒吧空间、材质、灯光与世界观"'
+        )
+    if len(description) > 600:
+        return "酒吧设计描述请控制在600字以内。"
+    state["bar_concept"] = description
+    return (
+        "酒吧的空间设计已经写入档案：%s\n"
+        "这只是设计方向，不会免费获得物品。需要的软装、硬装或跨世界物件，"
+        "可用 source_decor 加入商店，再用酒吧资金购买。"
+        % description
+    )
+
+
+def _decor_reference_value(name: str, category: str) -> int:
+    base = {"soft": 55, "hard": 320, "equipment": 220, "artifact": 250}[category]
+    references = {
+        "杯垫": 12,
+        "摆件": 24,
+        "花瓶": 32,
+        "挂画": 45,
+        "绿植": 40,
+        "台灯": 58,
+        "窗帘": 75,
+        "地毯": 95,
+        "椅": 85,
+        "沙发": 180,
+        "投影": 280,
+        "点唱机": 300,
+        "音响": 360,
+        "空调": 420,
+        "洗杯机": 460,
+        "制冰机": 520,
+        "舞台": 720,
+        "吧台": 880,
+        "包厢": 950,
+        "酒窖": 1050,
+        "传送门": 1120,
+        "低重力": 980,
+    }
+    matched = [value for keyword, value in references.items() if keyword in name]
+    return max([base] + matched)
+
+
+def _cmd_source_decor(state: Dict[str, Any], args: List[str]) -> str:
+    if len(args) < 3:
+        return (
+            '用法：source_decor "物品名" <soft|hard|equipment|artifact> '
+            '"来源世界" [common|uncommon|rare|collector] [new|used|damaged] ["作用描述"]'
+        )
+    name, category, origin = args[0], args[1].lower(), args[2]
+    if category not in ("soft", "hard", "equipment", "artifact"):
+        return "分类必须是 soft、hard、equipment 或 artifact。"
+    rarity = args[3].lower() if len(args) > 3 else "common"
+    condition = args[4].lower() if len(args) > 4 else "new"
+    if rarity not in ("common", "uncommon", "rare", "collector"):
+        return "稀有度必须是 common、uncommon、rare 或 collector。"
+    if condition not in ("new", "used", "damaged"):
+        return "状态必须是 new、used 或 damaged。"
+    if not name or len(name) > 50 or len(origin) > 80:
+        return "物品名应为1～50字，来源不超过80字。"
+    description = (
+        " ".join(args[5:]).strip()
+        if len(args) > 5
+        else "由AI按照来源世界与物品规则持续演绎其视觉和影响"
+    )
+    value = _decor_reference_value(name, category)
+    rarity_multiplier = {
+        "common": 1.0,
+        "uncommon": 1.25,
+        "rare": 1.65,
+        "collector": 2.2,
+    }[rarity]
+    condition_multiplier = {"new": 1.0, "used": 0.68, "damaged": 0.43}[condition]
+    real_origins = ("现实", "地球", "本地", "二手市场", "家具店")
+    world_multiplier = 1.0 if any(word in origin for word in real_origins) else 1.15
+    cost = int(
+        _clamp(
+            round(value * rarity_multiplier * condition_multiplier * world_multiplier),
+            10,
+            1500,
+        )
+    )
+    state["decor_no"] = int(state.get("decor_no", 0)) + 1
+    decor_id = "custom_decor:%03d" % state["decor_no"]
+    likes, _ = _catalog_tastes(decor_id + name + origin)
+    definition = {
+        "name": name,
+        "cost": cost,
+        "category": category,
+        "origin": origin,
+        "rarity": {
+            "common": "常见",
+            "uncommon": "少见",
+            "rare": "稀有",
+            "collector": "典藏",
+        }[rarity],
+        "condition": {
+            "new": "全新",
+            "used": "二手良好",
+            "damaged": "残损待修",
+        }[condition],
+        "maintenance": max(0, min(8, cost // 160)),
+        "tags": likes[:2],
+        "desc": description,
+    }
+    state["decor_market"][decor_id] = definition
+    state["decor_wishlist"].append(name)
+    state["decor_wishlist"] = state["decor_wishlist"][-30:]
+    return (
+        "商店已经找到：%s　%s｜%s·%s｜来源：%s｜%d点｜维护%d点/次营业\n"
+        "%s\n这只是上架，尚未付款；用 decorate %s 购买。"
+        % (
+            decor_id,
+            name,
+            definition["rarity"],
+            definition["condition"],
+            origin,
+            cost,
+            definition["maintenance"],
+            description,
+            decor_id,
+        )
+    )
+
+
 def _cmd_decor(state: Dict[str, Any], args: List[str]) -> str:
     del args
-    lines = ["【常驻商店｜酒馆装饰】（decorate <id>）"]
+    lines = [
+        "【常驻商店｜软装、硬装与跨世界物件】（decorate <id>）",
+        "AI可用 source_decor 自由描述目录外物品；价格按现实购买感、状态与稀有度换算成点数。",
+    ]
     owned = state.get("decorations", {})
-    for decor_id, definition in DECOR_DEFS.items():
+    catalog = dict(DECOR_DEFS)
+    catalog.update(state.get("decor_market", {}))
+    for decor_id, definition in catalog.items():
         status = (
             "已拥有"
             if decor_id in owned
             else "%d点" % int(definition["cost"])
         )
         lines.append(
-            "%s　%s｜%s｜%s"
-            % (decor_id, definition["name"], status, definition["desc"])
+            "%s　%s｜%s｜%s·%s｜%s"
+            % (
+                decor_id,
+                definition["name"],
+                status,
+                definition.get("rarity", "常见"),
+                definition.get("condition", "状态正常"),
+                definition["desc"],
+            )
         )
     lines.append("装饰会轻微影响来客频率与满意度，但永远不会排除任何客人。")
     lines.append("现有资金：%d点" % state["cash"])
@@ -3300,12 +4032,14 @@ def _cmd_decor(state: Dict[str, Any], args: List[str]) -> str:
 
 
 def _cmd_decorate(state: Dict[str, Any], args: List[str]) -> str:
-    if not args or args[0] not in DECOR_DEFS:
+    if not args:
         return "用法：decorate <装饰id>。先用 decor 查看。"
     decor_id = args[0]
+    definition = _decor_definition(state, decor_id)
+    if not definition:
+        return "商店里没有这个物品。AI可以先用 source_decor 寻找它。"
     if decor_id in state.get("decorations", {}):
-        return "酒馆已经摆放了%s。" % DECOR_DEFS[decor_id]["name"]
-    definition = DECOR_DEFS[decor_id]
+        return "酒馆已经摆放了%s。" % definition["name"]
     cost = int(definition["cost"])
     if state["cash"] < cost:
         return "资金不足：%s需要%d点，现有%d点。" % (
@@ -3316,11 +4050,13 @@ def _cmd_decorate(state: Dict[str, Any], args: List[str]) -> str:
     before = state["cash"]
     _cash_change(state, -cost, "购买酒馆装饰：%s" % definition["name"], "spend")
     state.setdefault("decorations", {})[decor_id] = {
-        "bought_visit": state["visit"]
+        "bought_visit": state["visit"],
+        "definition": definition,
     }
     state["session"]["highlights"].append("添置装饰%s" % definition["name"])
-    return "已添置%s。资金%d→%d点。%s" % (
+    return "已添置%s（%s）。资金%d→%d点。%s" % (
         definition["name"],
+        definition.get("category", "soft"),
         before,
         state["cash"],
         definition["desc"],
@@ -3468,9 +4204,13 @@ def _cmd_leave(state: Dict[str, Any], args: List[str]) -> str:
     waiting = [g for g in state["active_guests"] if not g["served"]]
     if waiting:
         return "还有客人在等待。先招待或 decline，再离店。"
+    decor_maintenance = sum(
+        int(definition.get("maintenance", 2))
+        for definition in _owned_decor_definitions(state)
+    )
     fixed_cost = (
         52
-        + len(state.get("decorations", {})) * 3
+        + decor_maintenance
         + sum(int(level) for level in state.get("upgrades", {}).values()) * 2
     )
     _cash_change(
@@ -3500,10 +4240,15 @@ def _cmd_leave(state: Dict[str, Any], args: List[str]) -> str:
     state["active_guests"] = []
     state["vendor"] = None
     state["post_bar"] = _intox(state) >= 3 or state["body"]["pending"] > 0
+    state["post_bar_turns"] = 0
     state["session"] = _empty_session()
     _refresh_market(state, starter=False)
     if state["post_bar"]:
-        after = "离开后醉态仍然有效；后续正常聊天每轮调用 conversation_turn()。"
+        after = (
+            "离开后醉态仍然有效。此后每一次回复用户前，都必须调用 "
+            "conversation_turn(user_message)，并按返回的强制演绎锁完成实际回复。\n"
+            + _post_bar_lock_text(state)
+        )
     else:
         after = "这次没有留下酒后影响，可以立即按平常方式交流。"
     risk = (
@@ -3535,6 +4280,8 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _help()
     if name == "setup":
         return _cmd_setup(state, args)
+    if name == "design":
+        return _cmd_design(state, args)
     if name in ("market", "shop"):
         return _cmd_market(state, args)
     if name == "vendor":
@@ -3589,6 +4336,8 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _cmd_upgrade(state, args)
     if name == "decor":
         return _cmd_decor(state, args)
+    if name == "source_decor":
+        return _cmd_source_decor(state, args)
     if name == "decorate":
         return _cmd_decorate(state, args)
     if name == "leave":
