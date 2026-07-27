@@ -30,6 +30,7 @@ MASK32 = 0xFFFFFFFF
 SAVE_PATH = Path(__file__).with_name("bar_save.json")
 ARCHIVE_BEGIN = "【AI酒吧档案｜V1】"
 ARCHIVE_END = "【档案结束】"
+WHOLESALE_COST_SCALE = 2.0
 
 TAGS = {
     "sweet": "甜",
@@ -1215,6 +1216,126 @@ BUILTIN_GUESTS.extend(
     for item in _GUEST_EXPANSION
 )
 
+# 现代影视、漫画、动画与游戏世界来客。全部按成年时期或成年版本演绎；
+# 具体对话由执行 AI 依据原作经历生成，而不是被一条固定台词锁死。
+_MODERN_FICTION_GUESTS = [
+    ("harry_potter_adult", "成年后的哈利·波特", "魔法世界·现代虚构来客", "疲惫但仍愿意保护别人，不喜欢被当成符号", "courage", 58, "rare"),
+    ("hermione_granger_adult", "成年后的赫敏·格兰杰", "魔法世界·现代虚构来客", "严谨、敏锐，会追问规则是否真的公正", "justice", 62, "rare"),
+    ("ron_weasley_adult", "成年后的罗恩·韦斯莱", "魔法世界·现代虚构来客", "幽默、忠诚，对被忽视十分敏感", "loyalty", 48, "uncommon"),
+    ("severus_snape", "西弗勒斯·斯内普", "魔法世界·现代虚构来客", "刻薄、克制，长期活在选择的后果里", "atonement", 61, "rare"),
+    ("sirius_black", "小天狼星·布莱克", "魔法世界·现代虚构来客", "叛逆、热烈，被失去的年月困住", "freedom", 59, "rare"),
+    ("luna_lovegood_adult", "成年后的卢娜·洛夫古德", "魔法世界·现代虚构来客", "坦然、古怪，从不嘲笑别人看不见的东西", "wonder", 46, "uncommon"),
+    ("rubeus_hagrid", "鲁伯·海格", "魔法世界·现代虚构来客", "善良、豪爽，对危险生物有不切实际的乐观", "care", 55, "uncommon"),
+    ("minerva_mcgonagall", "米勒娃·麦格", "魔法世界·现代虚构来客", "严厉、公正，温柔通常藏在纪律后面", "duty", 64, "rare"),
+    ("monkey_d_luffy", "蒙奇·D·路飞", "伟大航路·漫画虚构来客", "自由、直接，无法忍受朋友受辱", "freedom", 42, "rare"),
+    ("roronoa_zoro", "罗罗诺亚·索隆", "伟大航路·漫画虚构来客", "寡言、好胜，对承诺近乎固执", "promise", 58, "uncommon"),
+    ("nami", "娜美", "伟大航路·漫画虚构来客", "聪明、现实，对金钱与失去都有深刻记忆", "navigation", 67, "uncommon"),
+    ("sanji", "山治", "伟大航路·漫画虚构来客", "讲究、浪漫，把做饭和保护他人看得同样认真", "care", 63, "uncommon"),
+    ("nico_robin", "妮可·罗宾", "伟大航路·漫画虚构来客", "冷静、幽默，知道被世界追杀是什么滋味", "history", 72, "rare"),
+    ("trafalgar_law", "特拉法尔加·罗", "伟大航路·漫画虚构来客", "克制、警惕，习惯把痛苦折进计划", "survival", 69, "rare"),
+    ("shanks", "香克斯", "伟大航路·漫画虚构来客", "随和而危险，知道何时玩笑必须停止", "balance", 88, "rare"),
+    ("naruto_adult", "成年后的漩涡鸣人", "忍者世界·动画虚构来客", "外向、坚韧，仍记得被整个村子排斥的滋味", "bond", 49, "rare"),
+    ("sasuke_adult", "成年后的宇智波佐助", "忍者世界·动画虚构来客", "寡言、负罪，长期在复仇与赎罪之间行走", "atonement", 62, "rare"),
+    ("sakura_adult", "成年后的春野樱", "忍者世界·动画虚构来客", "果断、专业，拒绝再被低估", "healing", 56, "uncommon"),
+    ("kakashi_hatake", "旗木卡卡西", "忍者世界·动画虚构来客", "懒散表面下极其警觉，背负许多未说出口的名字", "memory", 61, "rare"),
+    ("tsunade", "纲手", "忍者世界·动画虚构来客", "豪爽、暴烈，对死亡与责任都太熟悉", "healing", 82, "rare"),
+    ("gaara_adult", "成年后的我爱罗", "忍者世界·动画虚构来客", "安静、克制，从孤立中学会如何保护一座城", "belonging", 55, "rare"),
+    ("itachi_uchiha", "宇智波鼬", "忍者世界·动画虚构来客", "温和而疏离，把无法辩解的选择独自背负", "sacrifice", 64, "rare"),
+    ("tony_stark", "托尼·斯塔克", "漫威宇宙·影视漫画来客", "锋利、爱炫耀，恐惧常被他包装成笑话和技术", "responsibility", 96, "rare"),
+    ("wanda_maximoff", "旺达·马克西莫夫", "漫威宇宙·影视漫画来客", "敏感、强大，爱与失去会直接改变现实", "grief", 74, "rare"),
+    ("natasha_romanoff", "娜塔莎·罗曼诺夫", "漫威宇宙·影视漫画来客", "冷静、戒备，把赎罪落实成一次次行动", "atonement", 70, "rare"),
+    ("thor_marvel", "索尔", "漫威宇宙·影视漫画来客", "豪爽、骄傲，也已经学会失败和哀悼", "worth", 89, "rare"),
+    ("peter_parker_adult", "成年后的彼得·帕克", "漫威宇宙·影视漫画来客", "善良、嘴快，总在责任和普通生活之间迟到", "responsibility", 38, "uncommon"),
+    ("doctor_strange", "斯蒂芬·斯特兰奇", "漫威宇宙·影视漫画来客", "自负、精确，被迫学会并非一切都能控制", "time", 78, "rare"),
+    ("loki_marvel", "洛基·劳菲森", "漫威宇宙·影视漫画来客", "聪明、善变，渴望被爱又害怕承认", "identity", 84, "rare"),
+    ("carol_danvers", "卡罗尔·丹弗斯", "漫威宇宙·影视漫画来客", "直接、自信，对被篡改的记忆保持愤怒", "independence", 73, "rare"),
+    ("matt_murdock", "马特·默多克", "漫威宇宙·影视漫画来客", "克制、固执，在信仰、法律与暴力间撕扯", "justice", 52, "uncommon"),
+    ("deadpool", "韦德·威尔逊", "漫威宇宙·影视漫画来客", "吵闹、越界，用玩笑遮盖疼痛和被抛弃感", "chaos", 66, "uncommon"),
+    ("bruce_wayne", "布鲁斯·韦恩", "DC宇宙·影视漫画来客", "冷峻、多疑，把创伤训练成一套纪律", "justice", 98, "rare"),
+    ("clark_kent", "克拉克·肯特", "DC宇宙·影视漫画来客", "温和、坚定，始终主动选择成为人群的一员", "hope", 54, "rare"),
+    ("diana_prince", "戴安娜·普林斯", "DC宇宙·影视漫画来客", "坦率、强大，对真相与怜悯同样认真", "truth", 81, "rare"),
+    ("harley_quinn", "哈莉·奎茵", "DC宇宙·影视漫画来客", "聪明、失控，正在把自己从他人的故事里夺回来", "self", 57, "uncommon"),
+    ("selina_kyle", "赛琳娜·凯尔", "DC宇宙·影视漫画来客", "机敏、独立，对规则的合法性从不盲信", "freedom", 76, "uncommon"),
+    ("john_constantine", "约翰·康斯坦丁", "DC宇宙·影视漫画来客", "刻薄、疲惫，总让别人以为他比实际更无情", "guilt", 51, "rare"),
+    ("arthur_curry", "亚瑟·库瑞", "DC宇宙·影视漫画来客", "强硬、直率，被两个世界同时要求忠诚", "belonging", 72, "rare"),
+    ("barry_allen", "巴里·艾伦", "DC宇宙·影视漫画来客", "善良、焦虑，太清楚改变过去的代价", "time", 45, "uncommon"),
+    ("leia_organa", "莱娅·奥加纳", "遥远银河·影视虚构来客", "果断、锋利，把悲痛留到战斗结束之后", "resistance", 74, "rare"),
+    ("han_solo", "汉·索罗", "遥远银河·影视虚构来客", "玩世不恭，真正做选择时却很少逃跑", "loyalty", 68, "uncommon"),
+    ("obi_wan_kenobi", "欧比旺·克诺比", "遥远银河·影视虚构来客", "克制、悲悯，失败感一直藏在从容后面", "duty", 63, "rare"),
+    ("ahsoka_tano", "阿索卡·塔诺", "遥远银河·影视虚构来客", "独立、清醒，不再让组织替她定义正义", "independence", 61, "rare"),
+    ("din_djarin", "丁·贾林", "遥远银河·影视虚构来客", "寡言、守诺，亲情慢慢改变了他的信条", "care", 59, "uncommon"),
+    ("cassian_andor", "卡西安·安多", "遥远银河·影视虚构来客", "务实、沉重，知道反抗也会弄脏双手", "resistance", 47, "rare"),
+    ("padme_amidala", "帕德梅·阿米达拉", "遥远银河·影视虚构来客", "理想主义、坚定，直到最后仍相信政治能够避免战争", "democracy", 69, "rare"),
+    ("lando_calrissian", "兰多·卡瑞辛", "遥远银河·影视虚构来客", "迷人、精明，会为一次错误选择长期补偿", "chance", 83, "uncommon"),
+    ("gandalf", "甘道夫", "中洲·经典奇幻来客", "温和、威严，擅长让普通人发现自己的勇气", "hope", 77, "rare"),
+    ("aragorn", "阿拉贡", "中洲·经典奇幻来客", "克制、可靠，对继承权保持长久戒心", "duty", 72, "rare"),
+    ("legolas", "莱戈拉斯", "中洲·经典奇幻来客", "敏锐、从容，对漫长岁月与短暂生命同样好奇", "friendship", 66, "uncommon"),
+    ("gimli", "金雳", "中洲·经典奇幻来客", "豪爽、骄傲，愿意为真正的友谊改变偏见", "friendship", 64, "uncommon"),
+    ("frodo_baggins", "佛罗多·巴金斯", "中洲·经典奇幻来客", "温和、疲惫，胜利也没能带走所有伤痕", "burden", 39, "rare"),
+    ("samwise_gamgee", "山姆卫斯·甘姆吉", "中洲·经典奇幻来客", "朴实、坚韧，把爱落实为陪伴和一顿饭", "loyalty", 37, "uncommon"),
+    ("galadriel", "凯兰崔尔", "中洲·经典奇幻来客", "古老、洞察，清楚拒绝权力同样需要力量", "wisdom", 91, "rare"),
+    ("bilbo_baggins", "比尔博·巴金斯", "中洲·经典奇幻来客", "讲究、好奇，冒险结束后仍会怀念远方", "story", 52, "uncommon"),
+    ("spike_spiegel", "斯派克·斯皮格尔", "星际赏金猎人世界·动画来客", "懒散、致命，像一直活在已经结束的过去", "past", 55, "rare"),
+    ("faye_valentine", "菲·瓦伦丁", "星际赏金猎人世界·动画来客", "尖锐、现实，被失去的身份感长期追赶", "identity", 62, "uncommon"),
+    ("motoko_kusanagi", "草薙素子", "攻壳世界·动画来客", "冷静、哲思，不断追问身体与自我的边界", "identity", 73, "rare"),
+    ("vash_stampede", "瓦修·斯坦比特", "枪烟荒漠·动画来客", "夸张、温柔，坚持不杀也承担这个选择的痛苦", "mercy", 43, "rare"),
+    ("edward_elric_adult", "成年后的爱德华·艾尔利克", "炼金术世界·动画来客", "急躁、聪明，永远不会轻视等价交换的代价", "equivalence", 46, "rare"),
+    ("geralt_rivia", "利维亚的杰洛特", "猎魔人世界·游戏文学来客", "寡言、讽刺，被迫在人类与怪物之间选择", "neutrality", 68, "rare"),
+    ("yennefer_vengerberg", "温格堡的叶奈法", "猎魔人世界·游戏文学来客", "骄傲、敏锐，把脆弱保护得近乎残酷", "desire", 82, "rare"),
+    ("ciri_adult", "成年后的希里", "猎魔人世界·游戏文学来客", "警觉、自由，被血统和预言追逐太久", "freedom", 63, "rare"),
+    ("kratos", "奎托斯", "战神世界·游戏来客", "沉默、压抑，正努力不把旧日暴怒交给下一代", "atonement", 75, "rare"),
+    ("aloy", "埃洛伊", "机械荒野·游戏来客", "好奇、独立，对被神化或排斥同样不耐烦", "truth", 47, "rare"),
+    ("arthur_morgan", "亚瑟·摩根", "衰落西部·游戏来客", "粗粝、忠诚，晚到的良知让每个选择更沉重", "redemption", 51, "rare"),
+    ("ellie_adult", "成年后的艾莉", "疫后世界·游戏来客", "锋利、创伤深重，爱与复仇彼此纠缠", "grief", 44, "rare"),
+    ("the_doctor", "博士", "时间旅行世界·影视来客", "古怪、仁慈，在漫长生命里背着太多告别", "time", 58, "rare"),
+    ("rick_sanchez", "瑞克·桑切斯", "多元宇宙·动画来客", "傲慢、虚无，用智力逃避亲密关系", "nihilism", 76, "rare"),
+    ("morticia_addams", "莫蒂西亚·亚当斯", "亚当斯宅邸·影视来客", "优雅、笃定，把阴郁生活过得极其浪漫", "devotion", 78, "uncommon"),
+    ("daenerys_targaryen", "丹妮莉丝·坦格利安", "冰与火世界·影视文学来客", "理想、强势，解放与统治的边界逐渐模糊", "power", 86, "rare"),
+    ("tyrion_lannister", "提利昂·兰尼斯特", "冰与火世界·影视文学来客", "机敏、尖刻，用知识与酒抵抗轻蔑", "wit", 69, "rare"),
+    ("jon_snow", "琼恩·雪诺", "冰与火世界·影视文学来客", "严肃、忠诚，一再被血统和誓言撕扯", "duty", 57, "rare"),
+    ("buffy_summers_adult", "成年后的巴菲·萨默斯", "吸血鬼猎人世界·影视来客", "勇敢、疲惫，拯救世界也渴望普通生活", "duty", 49, "uncommon"),
+    ("fox_mulder", "福克斯·穆德", "X档案世界·影视来客", "执着、敏感，愿意为被否认的真相毁掉前途", "belief", 48, "uncommon"),
+    ("dana_scully", "黛娜·斯嘉丽", "X档案世界·影视来客", "理性、勇敢，怀疑并不妨碍她忠于证据之外的人", "reason", 55, "rare"),
+    ("rick_deckard", "里克·戴克", "银翼都市·影视文学来客", "疲惫、麻木，对人的定义越来越不确定", "identity", 52, "rare"),
+    ("ellen_ripley", "艾伦·雷普利", "深空工业航线·影视来客", "务实、坚韧，不会为了公司命令牺牲判断", "survival", 61, "rare"),
+    ("sarah_connor", "莎拉·康纳", "终结者时间线·影视来客", "警觉、强硬，被未来的灾难重塑了整个人生", "future", 54, "rare"),
+    ("neo", "尼奥", "矩阵世界·影视来客", "安静、怀疑，必须一次次选择相信自由意志", "choice", 58, "rare"),
+]
+
+
+def _catalog_tastes(identifier: str) -> Tuple[List[str], List[str]]:
+    keys = list(TAGS)
+    value = sum((index + 1) * ord(char) for index, char in enumerate(identifier))
+    likes: List[str] = []
+    step = 5
+    cursor = value % len(keys)
+    while len(likes) < 3:
+        tag = keys[cursor % len(keys)]
+        if tag not in likes:
+            likes.append(tag)
+        cursor += step
+    dislike = keys[(value // 7 + 3) % len(keys)]
+    while dislike in likes:
+        dislike = keys[(keys.index(dislike) + 1) % len(keys)]
+    return likes, [dislike]
+
+
+for _item in _MODERN_FICTION_GUESTS:
+    _likes, _dislikes = _catalog_tastes(_item[0])
+    BUILTIN_GUESTS.append(
+        {
+            "id": _item[0],
+            "name": _item[1],
+            "origin": _item[2],
+            "temperament": _item[3],
+            "ethos": _item[4],
+            "budget": _item[5],
+            "rarity": _item[6],
+            "likes": _likes,
+            "dislikes": _dislikes,
+        }
+    )
+
 
 def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
@@ -1264,6 +1385,7 @@ def _empty_session() -> Dict[str, Any]:
         "bought": [],
         "owner_drinks": [],
         "guests": [],
+        "reviews": [],
         "highlights": [],
     }
 
@@ -1285,6 +1407,10 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "owner_dislikes": [],
         "vibe": "尚未形成",
         "cash": 460,
+        "reputation": 50,
+        "reviews": [],
+        "loan_balance": 0,
+        "loan_payments_left": 0,
         "inventory": {},
         "prices": {},
         "house_recipes": {},
@@ -1305,6 +1431,7 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "visit": 0,
         "records": {},
         "custom_guests": [],
+        "generated_guest_no": 0,
         "active_guests": [],
         "session": _empty_session(),
         "memories": [],
@@ -1335,6 +1462,13 @@ def _load() -> Dict[str, Any]:
     state.setdefault("vendor", None)
     state.setdefault("decorations", {})
     state.setdefault("ledger", [])
+    state.setdefault("reputation", 50)
+    state.setdefault("reviews", [])
+    state.setdefault("loan_balance", 0)
+    state.setdefault("loan_payments_left", 0)
+    state.setdefault("generated_guest_no", 0)
+    state.setdefault("session", _empty_session())
+    state["session"].setdefault("reviews", [])
     state.setdefault("play_mode", "autonomous")
     state.setdefault("upgrades", {})
     for upgrade_id in UPGRADE_DEFS:
@@ -1352,7 +1486,7 @@ def _make_special(state: Dict[str, Any], kind: str) -> Dict[str, Any]:
         "id": product_id,
         "name": name,
         "kind": kind,
-        "cost": int(round(base["cost"] * multiplier)),
+        "cost": int(round(base["cost"] * WHOLESALE_COST_SCALE * multiplier)),
         "servings": base["servings"],
         "units": round(base["units"] * (0.95 + _rand(state) * 0.25), 2),
         "tags": list(tags),
@@ -1367,6 +1501,7 @@ def _refresh_market(state: Dict[str, Any], starter: bool = False) -> None:
     for product_id in BASE_PRODUCTS:
         product = dict(BASE_PRODUCTS[product_id])
         product["id"] = product_id
+        product["cost"] = int(round(product["cost"] * WHOLESALE_COST_SCALE))
         product["seller"] = "空杯俱乐部常驻商店"
         product["stock"] = 99
         offers.append(product)
@@ -1400,6 +1535,19 @@ def _cash_change(
         }
     )
     state["ledger"] = state["ledger"][-100:]
+
+
+def _financial_health(state: Dict[str, Any]) -> str:
+    cash = int(state["cash"])
+    if cash >= 240:
+        return "现金健康"
+    if cash >= 0:
+        return "资金吃紧"
+    if cash > -150:
+        return "已经亏损"
+    if cash > -300:
+        return "严重负债"
+    return "濒临停业"
 
 
 def _open_traveling_vendor(state: Dict[str, Any]) -> str:
@@ -1549,6 +1697,88 @@ def _all_guest_cards(state: Dict[str, Any]) -> List[Dict[str, Any]]:
     return BUILTIN_GUESTS + state.get("custom_guests", [])
 
 
+_WANDERER_WORLDS = [
+    ("潮汐倒流的海港", "那里的人在退潮时会想起未来"),
+    ("被遗忘神明的卫星城", "神迹已经停摆，只剩维护神迹的工人"),
+    ("第三次太阳熄灭后的地球", "白昼需要按小时租用"),
+    ("只允许梦境通行的边境", "醒着的人没有合法身份"),
+    ("会衰老的机械王国", "机器开始害怕报废，也开始争取葬礼"),
+    ("一切谎言都会结晶的都市", "富人雇人替自己说谎"),
+    ("记忆可以继承的群岛", "孩子出生时会得到陌生人的一生"),
+    ("战争从未结束的月面殖民地", "停火只存在于广播里"),
+    ("由亡者管理的图书共和国", "每本禁书都记得烧毁它的人"),
+    ("时间按阶层分配的高塔", "底层居民一天只有十七个小时"),
+    ("巨兽背上的迁徙城市", "地图每天都会改变"),
+    ("没有货币、只交换承诺的市场", "违约会在皮肤上留下字"),
+    ("情绪会改变天气的盆地", "悲伤季已经持续了九年"),
+    ("复制人获得公民权后的火星", "原件与副本仍在争夺同一个名字"),
+    ("死者能寄信回来的旧邮区", "邮费由活人的记忆支付"),
+    ("所有门都通往错误人生的旅馆", "住客必须选择一扇门离开"),
+]
+
+_WANDERER_ROLES = [
+    ("失业的预言师", "曾准确预见一场灾难，却没人相信"),
+    ("替怪物辩护的律师", "刚输掉一桩决定整个族群命运的案件"),
+    ("被自己造物放逐的工程师", "仍偷偷为造物修补故障"),
+    ("贩卖假记忆的前鉴定师", "能认出伪造，却分不清自己的童年"),
+    ("拒绝登基的继承人", "王国因此分裂，也有人因此活了下来"),
+    ("专门寻找失踪神明的侦探", "最后一个委托人可能就是神明本人"),
+    ("给敌军做过手术的军医", "救下的人后来摧毁了故乡"),
+    ("会替人保存秘密的调香师", "一只旧瓶里封着足以发动战争的真相"),
+    ("从档案里逃出来的虚构人物", "作者删掉了结局，却没能删掉其求生欲"),
+    ("为机器人主持葬礼的司仪", "相信哀悼是人格最可靠的证据"),
+    ("偷走一天时间的惯犯", "把赃物全部送给了将死之人"),
+    ("被两段历史同时通缉的记者", "两边都指控其伪造了同一张照片"),
+    ("不再收灵魂的摆渡人", "罢工后，亡者挤满了河岸"),
+    ("研究人类笑声的外星学者", "已经开始怀疑自己的研究对象也在研究自己"),
+    ("负责销毁世界末日按钮的保管员", "按钮少了一枚，而嫌疑人只有自己"),
+    ("替陌生人梦游的职业代理人", "最近在梦里遇见了清醒时认识的人"),
+]
+
+_WANDERER_MOTIVES = [
+    ("想证明自己没有背叛任何人", "忠诚"),
+    ("只想找一个不会追问身份的地方坐一会儿", "自由"),
+    ("准备承认一件会毁掉名誉的往事", "诚实"),
+    ("正在决定是否原谅一个从未道歉的人", "宽恕"),
+    ("需要判断一项高尚计划是否值得肮脏的手段", "责任"),
+    ("怀疑自己最珍贵的记忆是别人植入的", "自我"),
+    ("想用最后一点钱买回曾经放弃的承诺", "承诺"),
+    ("已经赢得复仇，却没有因此轻松", "救赎"),
+    ("害怕自己正在变成曾经反抗的人", "权力"),
+    ("必须在一个人的生命和一座城的未来之间选择", "牺牲"),
+]
+
+
+def _generate_wanderer(state: Dict[str, Any]) -> Dict[str, Any]:
+    """生成有持续经历和价值冲突的原创来客，让候选池随经营永久增长。"""
+    state["generated_guest_no"] = int(state.get("generated_guest_no", 0)) + 1
+    number = state["generated_guest_no"]
+    world, world_rule = _choice(state, _WANDERER_WORLDS)
+    role, past = _choice(state, _WANDERER_ROLES)
+    motive, ethos = _choice(state, _WANDERER_MOTIVES)
+    titles = ["无名", "迟到", "失约", "逆光", "借火", "雨夜", "末班", "第七码头"]
+    name = "%s的%s" % (_choice(state, titles), role)
+    likes, dislikes = _catalog_tastes("wanderer_%d_%s" % (number, world))
+    card = {
+        "id": "wanderer_%04d" % number,
+        "name": name,
+        "origin": "%s·原创开放世界来客" % world,
+        "likes": likes,
+        "dislikes": dislikes,
+        "budget": 30 + int(_rand(state) * 66),
+        "rarity": _choice(state, ["common", "uncommon", "uncommon", "rare"]),
+        "temperament": "%s；%s" % (past, motive),
+        "ethos": ethos,
+        "backstory": "世界规则：%s。人物经历：%s。当前矛盾：%s。" % (
+            world_rule,
+            past,
+            motive,
+        ),
+    }
+    state["custom_guests"].append(card)
+    return card
+
+
 def _guest_record(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
     if card["id"] not in state["records"]:
         state["records"][card["id"]] = {
@@ -1632,12 +1862,24 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
             ],
         )
         return quiet
+    newcomer = None
+    discovery_chance = 0.11 + state["upgrades"].get("portal", 0) * 0.035
+    if _rand(state) < discovery_chance:
+        newcomer = _generate_wanderer(state)
+        state["session"]["highlights"].append(
+            "酒馆第一次发现来自%s的%s"
+            % (newcomer["origin"].split("·")[0], newcomer["name"])
+        )
     cards = _all_guest_cards(state)
     group_chance = 0.16 + state["upgrades"].get("stage", 0) * 0.08
     count = 2 if _rand(state) < group_chance else 1
-    chosen: List[Dict[str, Any]] = []
-    available = list(cards)
-    for _ in range(min(count, len(available))):
+    chosen: List[Dict[str, Any]] = [newcomer] if newcomer else []
+    available = [
+        item
+        for item in cards
+        if newcomer is None or item["id"] != newcomer["id"]
+    ]
+    for _ in range(min(max(0, count - len(chosen)), len(available))):
         card = _weighted_choice(
             state, [(item, _guest_weight(state, item)) for item in available]
         )
@@ -1744,7 +1986,7 @@ def _default_price(state: Dict[str, Any], profile: Dict[str, Any]) -> int:
     rarity_add = {"常备": 0, "少见": 7, "稀有": 14, "典藏": 24}.get(
         source["rarity"], 0
     )
-    return max(18, int(math.ceil(source["cost"] / source["servings"] * 2.8)) + rarity_add)
+    return max(16, int(math.ceil(source["cost"] / source["servings"] * 2.2)) + rarity_add)
 
 
 def _price(state: Dict[str, Any], profile: Dict[str, Any]) -> int:
@@ -1763,6 +2005,12 @@ def _consume(state: Dict[str, Any], profile: Dict[str, Any], count: int) -> bool
         }
     )
     return True
+
+
+def _service_cost(profile: Dict[str, Any], portions: int = 1) -> int:
+    """冰、辅料、杯具清洁和损耗；即使免单也会真实发生。"""
+    recipe_add = 0 if profile["id"].startswith("pour:") else 3
+    return max(4, 3 + len(profile["tags"]) + recipe_add) * portions
 
 
 def _taste_sentences(tags: Sequence[str]) -> str:
@@ -1887,6 +2135,62 @@ def _score_guest(
     return int(_clamp(score, 0, 100))
 
 
+def _review_stars(satisfaction: int) -> int:
+    if satisfaction >= 90:
+        return 5
+    if satisfaction >= 72:
+        return 4
+    if satisfaction >= 55:
+        return 3
+    if satisfaction >= 35:
+        return 2
+    return 1
+
+
+def _settlement(price: int, satisfaction: int) -> Tuple[int, int, str]:
+    """客人品尝后结账；差评可能触发折价或免单。"""
+    if satisfaction >= 88:
+        paid = price
+        tip = int(round(price * 0.10))
+        note = "全额结账并留下小费"
+    elif satisfaction >= 70:
+        paid, tip, note = price, 0, "全额结账"
+    elif satisfaction >= 52:
+        paid, tip, note = int(round(price * 0.8)), 0, "提出意见后按八折结账"
+    elif satisfaction >= 32:
+        paid, tip, note = int(round(price * 0.45)), 0, "给出差评，只支付部分费用"
+    else:
+        paid, tip, note = 0, 0, "给出严重差评，本杯免单"
+    return paid, tip, note
+
+
+def _review_comment(card: Dict[str, Any], profile: Dict[str, Any], stars: int) -> str:
+    if stars == 5:
+        return "%s：这杯%s听懂了我今晚真正想喝的东西。" % (
+            card["name"],
+            profile["name"],
+        )
+    if stars == 4:
+        return "%s：%s值得喝完，但还有一处可以更准确。" % (
+            card["name"],
+            profile["name"],
+        )
+    if stars == 3:
+        return "%s：%s没有出错，也没有让我记住。" % (
+            card["name"],
+            profile["name"],
+        )
+    if stars == 2:
+        return "%s：%s偏离了我的要求，我不会按原价买单。" % (
+            card["name"],
+            profile["name"],
+        )
+    return "%s：%s不是我点的那杯。这次我拒绝付款。" % (
+        card["name"],
+        profile["name"],
+    )
+
+
 def _serve_guest(
     state: Dict[str, Any], guest_id: str, drink_id: str, owner_joins: bool
 ) -> str:
@@ -1926,21 +2230,28 @@ def _serve_guest(
     active["npc_drunk"] = round(
         _clamp(float(active.get("npc_drunk", 0.0)) + profile["units"] * 18.0), 1
     )
-    tip = int(round(price * 0.18)) if satisfaction >= 88 else (
-        int(round(price * 0.08)) if satisfaction >= 75 else 0
-    )
+    paid, tip, settlement_note = _settlement(price, satisfaction)
+    service_cost = _service_cost(profile, portions)
+    stars = _review_stars(satisfaction)
+    review_text = _review_comment(card, profile, stars)
     before_cash = state["cash"]
     _cash_change(
         state,
-        price + tip,
-        "%s购买%s%s"
+        -service_cost,
+        "调制%s的冰、辅料与清洁损耗" % profile["name"],
+        "spend",
+    )
+    _cash_change(
+        state,
+        paid + tip,
+        "%s为%s结账%s"
         % (card["name"], profile["name"], ("并给小费%d点" % tip) if tip else ""),
         "revenue",
     )
     active["served"] = True
     active["served_count"] = served_count + 1
     active["drinks"].append(drink_id)
-    active["spent"] = int(active["spent"]) + price + tip
+    active["spent"] = int(active["spent"]) + paid + tip
     record = state["records"][guest_id]
     record["served"] += 1
     record["trust"] = int(_clamp(record["trust"] + (satisfaction - 55) / 12, -20, 50))
@@ -1949,7 +2260,26 @@ def _serve_guest(
             "visit": state["visit"],
             "drink": profile["name"],
             "satisfaction": satisfaction,
+            "paid": paid,
+            "stars": stars,
         }
+    )
+    review = {
+        "visit": state["visit"],
+        "guest_id": guest_id,
+        "guest": card["name"],
+        "drink": profile["name"],
+        "stars": stars,
+        "satisfaction": satisfaction,
+        "paid": paid,
+        "text": review_text,
+    }
+    state["reviews"].append(review)
+    state["reviews"] = state["reviews"][-100:]
+    state["session"]["reviews"].append(review)
+    reputation_delta = {5: 2, 4: 1, 3: 0, 2: -2, 1: -4}[stars]
+    state["reputation"] = int(
+        _clamp(int(state.get("reputation", 50)) + reputation_delta)
     )
     for tag in card["likes"]:
         if tag in active["request"]["tags"] and tag not in record["known_likes"]:
@@ -1967,11 +2297,20 @@ def _serve_guest(
         {"visit": state["visit"], "event": "招待%s" % card["name"]}
     )
     lines = [
-        "🍸 给%s的%s｜售价%d点%s"
-        % (card["name"], profile["name"], price, ("＋小费%d" % tip) if tip else ""),
+        "🍸 给%s的%s｜标价%d点"
+        % (card["name"], profile["name"], price),
         _npc_reaction(state, card, profile, satisfaction),
         "满意度：%d/100｜关系：%+d" % (satisfaction, record["trust"]),
         _npc_body_line(card, active["npc_drunk"]),
+        "评价：%s｜%s" % ("★" * stars + "☆" * (5 - stars), review_text),
+        "结账：%s｜实付%d点%s｜本杯耗材%d点"
+        % (
+            settlement_note,
+            paid,
+            ("＋小费%d点" % tip) if tip else "",
+            service_cost,
+        ),
+        "酒馆声誉：%d/100（%+d）" % (state["reputation"], reputation_delta),
         "资金：%d→%d点" % (before_cash, state["cash"]),
     ]
     if satisfaction >= 90:
@@ -2054,6 +2393,8 @@ def _status_data(state: Dict[str, Any]) -> Dict[str, Any]:
         "phase": state["phase"],
         "bar": state["bar_name"] or "未命名",
         "cash": state["cash"],
+        "reputation": state.get("reputation", 50),
+        "financial_health": _financial_health(state),
         "visit": state["visit"],
         "turn": state["turn"],
         "inventory": len(state["inventory"]),
@@ -2225,6 +2566,7 @@ cheers_user <酒ID> [用户喜欢标签]     邀请用户共同喝
 water / eat                          喝水 / 吃东西
 status / guests / memory             状态 / 顾客 / 经历
 ledger / report                      资金流水 / 经营简报
+reviews / loan                       客人评价 / 危机时申请高成本贷款
 upgrades / upgrade <id>              商店升级列表 / 购买升级
 decor / decorate <id>                商店装饰列表 / 购买装饰
 archive                              输出严格酒吧档案
@@ -2486,7 +2828,7 @@ def _cmd_invent(state: Dict[str, Any], args: List[str]) -> str:
         factor -= 0.05
     factor = round(_clamp(factor, 0.65, 1.08), 2)
     ingredient_cost = source["cost"] / max(1, source["servings"])
-    price = max(20, int(math.ceil(ingredient_cost * 3.0 + len(tags) * 2)))
+    price = max(16, int(math.ceil(ingredient_cost * 2.0 + len(tags) * 2)))
     state["house_recipes"][recipe_id] = {
         "name": name,
         "kind": kind,
@@ -2644,6 +2986,127 @@ def _cmd_decline(state: Dict[str, Any], args: List[str]) -> str:
     return "%s没有喝到酒，记下了这次拒绝，随后退到门外。" % card["name"]
 
 
+_CANON_TOPIC_DIALOGUE: Dict[str, List[Tuple[Tuple[str, ...], str]]] = {
+    "su_shi": [
+        (
+            ("贬", "黄州", "失意"),
+            "苏轼没有回避这个问题：“被贬不是一句‘看开了’就能抹平的。"
+            "黄州最初那几年，我也穷，也怕，也不知道前路在哪里。后来去种地、做饭、"
+            "写字，不是因为苦难忽然高尚，而是人总得把今天过下去。所谓旷达，"
+            "有时只是一次次不肯让困境替我决定我是谁。”",
+        ),
+        (
+            ("东坡肉", "吃", "美食"),
+            "苏轼笑了：“吃并非小事。人在命运里能做主的东西不多，火候、盐和与谁同桌，"
+            "恰好算几样。把寻常猪肉慢慢做得可亲，也是一种不向潦倒认输。”",
+        ),
+    ],
+    "chang_e": [
+        (
+            ("孤独", "月宫", "寂寞"),
+            "月宫旅人望着杯中晃动的灯：“孤独并不是四周无人。真正难熬的是，"
+            "地上的一切仍在变化，而我只能隔着同一轮月亮看。久了以后，"
+            "连思念也会变得像一种固定的天气。”",
+        ),
+        (
+            ("后悔", "奔月", "仙药"),
+            "月宫旅人沉默了一会儿：“若把我只写成后悔或不后悔，都太轻易。"
+            "一个决定会救人，也会伤人；会打开一条路，也会永远关上一扇门。"
+            "我承担它，但承担不等于从未动摇。”",
+        ),
+    ],
+    "li_bai": [
+        (
+            ("长安", "赐金", "仕途"),
+            "李白把笑意收了一点：“长安给过我门，也让我看清那扇门有多窄。"
+            "我想要的从来不只是一个翰林名号。我想让天下承认，人的才气不该只替权贵点灯。”",
+        )
+    ],
+    "ada_lovelace": [
+        (
+            ("机器", "算法", "计算"),
+            "阿达认真纠正道：“机器不会凭空创造意义，但它能处理符号之间的关系。"
+            "若人类有一天让音符、图像和语言都服从可描述的规则，那么计算便不会只属于数字。”",
+        )
+    ],
+    "cleopatra": [
+        (
+            ("罗马", "权力", "女王"),
+            "克利奥帕特拉平静地说：“后人喜欢把政治缩成爱情，因为那样更容易观看。"
+            "可我面对的是粮食、舰队、债务与一个正在吞并世界的共和国。魅力是工具，"
+            "从来不是我全部的统治。”",
+        )
+    ],
+    "ibn_sina": [
+        (
+            ("医学", "灵魂", "治疗"),
+            "伊本·西那回答：“治疗不能只盯着病灶。人的饮食、睡眠、恐惧和希望都会进入身体。"
+            "承认我们尚不知道答案，并不削弱医术，反而是医者必须有的诚实。”",
+        )
+    ],
+    "frida_kahlo": [
+        (
+            ("痛", "身体", "画"),
+            "弗里达直视着提问的人：“我画痛，不是为了让别人欣赏我受过多少苦。"
+            "身体背叛我，政治也会背叛人，所以我必须亲手决定自己如何被看见。”",
+        )
+    ],
+    "tesla": [
+        (
+            ("爱迪生", "发明", "孤独"),
+            "特斯拉轻轻敲着杯沿：“竞争只是别人爱讲的故事。真正折磨我的，"
+            "是一个完整装置已经在脑中运转，而现实的铜、钱和人的短视却跟不上它。”",
+        )
+    ],
+    "mary_shelley": [
+        (
+            ("怪物", "创造", "责任"),
+            "玛丽·雪莱说：“造物最初并不邪恶。被创造后又被抛弃，才是悲剧真正开始的地方。"
+            "人总热衷于追问知识能走多远，却不愿回答：当它活过来，我们欠它什么？”",
+        )
+    ],
+    "sherlock_holmes": [
+        (
+            ("华生", "案件", "孤独"),
+            "福尔摩斯看了提问者一眼：“华生并非我的记录工具。他替我保留了与普通生活的联系。"
+            "纯粹的推理可以解开案件，却不能单独构成一个值得活下去的人生。”",
+        )
+    ],
+    "jean_valjean": [
+        (
+            ("面包", "监狱", "宽恕"),
+            "冉·阿让低声说：“偷一块面包让我成为囚犯，别人的宽恕才迫使我重新选择自己。"
+            "法律告诉我曾经做错什么；仁慈则要求我以后成为什么人。后者更难。”",
+        )
+    ],
+}
+
+
+def _roleplay_rule(card: Dict[str, Any]) -> str:
+    origin = card.get("origin", "")
+    if "历史来客" in origin:
+        return "依据该历史人物可确认的经历、时代处境、思想与性格演绎；允许虚构语气，不得改写关键史实。"
+    if (
+        "文学来客" in origin
+        or "虚构来客" in origin
+        or "影视来客" in origin
+        or "漫画来客" in origin
+        or "动画来客" in origin
+        or "游戏来客" in origin
+        or "奇幻来客" in origin
+    ):
+        return (
+            "调用你对原作的知识，依据人物在原作中的经历、关系、创伤、欲望与价值冲突演绎；"
+            "采用成年版本时保留其成长，不得只套表面标签，不得编造与关键设定冲突的履历。"
+        )
+    if "神话来客" in origin or "传说来客" in origin:
+        return "依据主要神话或传说版本演绎；版本冲突时可让角色承认传说存在分歧。"
+    return (
+        "严格沿用人物卡中的来处、经历钩子、性格与价值立场，让原创角色保持前后一致。"
+        + ("人物背景：" + card["backstory"] if card.get("backstory") else "")
+    )
+
+
 def _cmd_talk(state: Dict[str, Any], args: List[str]) -> str:
     if not args:
         return "用法：talk <客人ID> [话题]"
@@ -2654,25 +3117,56 @@ def _cmd_talk(state: Dict[str, Any], args: List[str]) -> str:
     record = state["records"][guest_id]
     card = record["card"]
     topic = " ".join(args[1:]).strip() or "来处与近况"
-    if guest_id == "fox_spirit":
+    response = ""
+    for keywords, candidate in _CANON_TOPIC_DIALOGUE.get(guest_id, []):
+        if any(keyword in topic for keyword in keywords):
+            response = candidate
+            break
+    if guest_id == "fox_spirit" and any(
+        keyword in topic for keyword in ("酒", "货", "市场", "典藏")
+    ):
         response = (
-            "九尾狐用指尖拨了拨杯里的冰，笑意比刚进门时真了一点。\n"
-            "“第七码头刚到一批‘梦境蜂蜜利口酒’，睡神典藏版。"
-            "甜得像好梦，后劲却会把人没说出口的话翻出来。下次供应单若刷到，"
-            "别嫌它贵——当然，也别当着我面说是我推荐的。”"
+            "九尾狐用指尖拨了拨杯里的冰：“第七码头确实刚到一批梦境蜂蜜利口酒。"
+            "我可以告诉你卖家、年份和真假，但不会假装这是人情——消息也有价。"
+            "你若只是想知道它好不好喝，我的答案是：甜得像好梦，后劲会把没说出口的话翻出来。”"
         )
-        state["session"]["highlights"].append("九尾狐透露了梦境蜂蜜利口酒的消息")
-    else:
-        response = (
-            "%s听完“%s”这个话题，先看了一眼杯中的酒。\n"
-            "“你愿意问，我就愿意留一会儿。不过有些答案，要等下一杯才能说完。”"
-            % (card["name"], topic)
-        )
-        state["session"]["highlights"].append("与%s谈到%s" % (card["name"], topic))
+    record["talk_count"] = int(record.get("talk_count", 0)) + 1
+    state["session"]["highlights"].append("与%s谈到%s" % (card["name"], topic))
     trust_gain = 1 + state["upgrades"].get("quiet_booth", 0)
     record["trust"] = int(_clamp(record["trust"] + trust_gain, -20, 50))
     record["memories"].append("第%d次来店，与老板谈到：%s" % (state["visit"], topic))
-    return response + "\n关系：%+d" % record["trust"]
+    recent_memory = "；".join(record["memories"][-4:]) or "初次交谈"
+    current_drinks = "、".join(active.get("drinks", [])) or "尚未饮酒"
+    internal_brief = (
+        "【执行AI内部演绎卡｜不得原样展示给用户】\n"
+        "角色：%s｜来处：%s｜性格：%s｜价值立场：%s\n"
+        "用户刚刚说/问：%s｜关系：%+d｜来访%d次｜当前醉度：%.1f｜已饮：%s\n"
+        "连续记忆：%s\n"
+        "演绎规则：%s\n"
+        "现在必须生成一段真正给用户看的角色回应，不得只返回摘要、设定或指令。"
+        "用户的问题可以完全随机：先理解其真实意图，再以角色此刻知道的信息直接回应。"
+        "角色有自己的判断和目的，可以坦白、反问、追问、争辩、误会、改口、沉默或拒绝；"
+        "也可以主动接回旧话题、提起自身经历、回应同桌来客，但不要每次都反问。"
+        "酒精只改变表达与情绪，绝不能默认用“再喝一杯才告诉你”拖延。"
+        "请调用你对该人物经历、时代、原著或神话的知识，把回答写成自然对话和动作，"
+        "不要朗读人物卡，不要把关系增长当台词，不要把所有交流变成交易或任务。"
+        % (
+            card["name"],
+            card["origin"],
+            card["temperament"],
+            card["ethos"],
+            topic,
+            record["trust"],
+            record["visits"],
+            float(active.get("npc_drunk", 0.0)),
+            current_drinks,
+            recent_memory,
+            _roleplay_rule(card),
+        )
+    )
+    if response:
+        return response + "\n\n" + internal_brief
+    return internal_brief
 
 
 def _cmd_water(state: Dict[str, Any], args: List[str]) -> str:
@@ -2710,7 +3204,7 @@ def _cmd_eat(state: Dict[str, Any], args: List[str]) -> str:
 def _cmd_status(state: Dict[str, Any], args: List[str]) -> str:
     del args
     return (
-        "【%s】%s｜资金%d点｜第%d次经历\n"
+        "【%s】%s｜资金%d点（%s）｜声誉%d/100｜第%d次经历\n"
         "老板口味：喜欢%s；回避%s｜气质：%s\n"
         "酒库：%s\n"
         "原创调酒：%d款｜装饰：%s\n"
@@ -2719,6 +3213,8 @@ def _cmd_status(state: Dict[str, Any], args: List[str]) -> str:
             state["bar_name"] or "未命名酒吧",
             state["phase"],
             state["cash"],
+            _financial_health(state),
+            state.get("reputation", 50),
             state["visit"],
             _tag_text(state["owner_likes"]) or "未设定",
             _tag_text(state["owner_dislikes"]) or "暂无",
@@ -2895,8 +3391,16 @@ def _cmd_report(state: Dict[str, Any], args: List[str]) -> str:
     ]
     lines = [
         "【本次经营简报】",
-        "收入%d点｜支出%d点｜当前资金%d点"
-        % (session["revenue"], session["spend"], state["cash"]),
+        "收入%d点｜支出%d点｜净变化%+d点｜当前资金%d点（%s）"
+        % (
+            session["revenue"],
+            session["spend"],
+            session["revenue"] - session["spend"],
+            state["cash"],
+            _financial_health(state),
+        ),
+        "声誉%d/100｜本次评价：%d条"
+        % (state.get("reputation", 50), len(session.get("reviews", []))),
         "遇见：%s" % ("、".join(guest_names) if guest_names else "暂无特别来客"),
         "我喝过：%s"
         % (
@@ -2912,6 +3416,51 @@ def _cmd_report(state: Dict[str, Any], args: List[str]) -> str:
     return "\n".join(lines)
 
 
+def _cmd_loan(state: Dict[str, Any], args: List[str]) -> str:
+    del args
+    if int(state.get("loan_payments_left", 0)) > 0:
+        return "已有应急贷款未还清：余额%d点，还需%d次营业还款。" % (
+            state.get("loan_balance", 0),
+            state.get("loan_payments_left", 0),
+        )
+    if state["cash"] >= 80:
+        return "资金尚未陷入危机，当前不能申请应急贷款。"
+    before = state["cash"]
+    _cash_change(state, 300, "取得应急经营贷款", None)
+    state["loan_balance"] = 450
+    state["loan_payments_left"] = 10
+    return (
+        "取得300点应急资金，资金%d→%d点。此后10次营业结束各偿还45点，"
+        "总还款450点。贷款能救急，但会长期压缩利润。"
+        % (before, state["cash"])
+    )
+
+
+def _cmd_reviews(state: Dict[str, Any], args: List[str]) -> str:
+    del args
+    reviews = state.get("reviews", [])
+    if not reviews:
+        return "还没有客人留下评价。当前声誉%d/100。" % state.get(
+            "reputation", 50
+        )
+    lines = [
+        "【客人评价｜最近10条】",
+        "当前声誉：%d/100" % state.get("reputation", 50),
+    ]
+    for review in reviews[-10:]:
+        lines.append(
+            "%s｜%s｜%s｜实付%d点\n%s"
+            % (
+                "★" * int(review["stars"]) + "☆" * (5 - int(review["stars"])),
+                review["guest"],
+                review["drink"],
+                review["paid"],
+                review["text"],
+            )
+        )
+    return "\n".join(lines)
+
+
 def _cmd_leave(state: Dict[str, Any], args: List[str]) -> str:
     del args
     if state["phase"] != "open":
@@ -2919,6 +3468,31 @@ def _cmd_leave(state: Dict[str, Any], args: List[str]) -> str:
     waiting = [g for g in state["active_guests"] if not g["served"]]
     if waiting:
         return "还有客人在等待。先招待或 decline，再离店。"
+    fixed_cost = (
+        52
+        + len(state.get("decorations", {})) * 3
+        + sum(int(level) for level in state.get("upgrades", {}).values()) * 2
+    )
+    _cash_change(
+        state,
+        -fixed_cost,
+        "本次营业租金、水电、维护与基础损耗",
+        "spend",
+    )
+    loan_line = ""
+    if int(state.get("loan_payments_left", 0)) > 0:
+        payment = min(45, int(state.get("loan_balance", 0)))
+        _cash_change(state, -payment, "偿还应急经营贷款", "spend")
+        state["loan_balance"] = max(
+            0, int(state.get("loan_balance", 0)) - payment
+        )
+        state["loan_payments_left"] = max(
+            0, int(state.get("loan_payments_left", 0)) - 1
+        )
+        loan_line = "\n本次偿还贷款%d点，剩余%d点。" % (
+            payment,
+            state["loan_balance"],
+        )
     memory = _session_memory(state)
     state["memories"].append(memory)
     state["memories"] = state["memories"][-30:]
@@ -2932,7 +3506,21 @@ def _cmd_leave(state: Dict[str, Any], args: List[str]) -> str:
         after = "离开后醉态仍然有效；后续正常聊天每轮调用 conversation_turn()。"
     else:
         after = "这次没有留下酒后影响，可以立即按平常方式交流。"
-    return memory + "\n" + after + "\n酒吧档案已更新，可用 archive 写入长期记忆。"
+    risk = (
+        "\n⚠️ 经营警报：资金已经为负。下一次若没有提高收入或控制成本，"
+        "酒馆会继续亏损。必要时可用 loan 申请高成本应急贷款。"
+        if state["cash"] < 0
+        else ""
+    )
+    return (
+        memory
+        + "\n固定营业成本：%d点。%s" % (fixed_cost, _financial_health(state))
+        + loan_line
+        + risk
+        + "\n"
+        + after
+        + "\n酒吧档案已更新，可用 archive 写入长期记忆。"
+    )
 
 
 def _run_one(state: Dict[str, Any], command: str) -> str:
@@ -2991,6 +3579,10 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _cmd_report(state, args)
     if name == "ledger":
         return _cmd_ledger(state, args)
+    if name == "reviews":
+        return _cmd_reviews(state, args)
+    if name == "loan":
+        return _cmd_loan(state, args)
     if name == "upgrades":
         return _cmd_upgrades(state, args)
     if name == "upgrade":
