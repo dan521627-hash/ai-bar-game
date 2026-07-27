@@ -1,4 +1,4 @@
-"""《万象酒馆》：给 AI 玩的零依赖文字酒吧游戏。
+"""《空杯俱乐部》：给 AI 玩的零依赖文字酒吧游戏。
 
 对外接口：
     new_game(seed)
@@ -143,40 +143,168 @@ BASE_PRODUCTS: Dict[str, Dict[str, Any]] = {
         "rarity": "常备",
         "edition": "基础版",
     },
+    "cloud_sake": {
+        "name": "云川纯米吟酿",
+        "kind": "sake",
+        "cost": 50,
+        "servings": 10,
+        "units": 0.95,
+        "tags": ["crisp", "floral", "dry"],
+        "rarity": "常备",
+        "edition": "基础版",
+    },
+    "stone_baijiu": {
+        "name": "青石浓香白酒",
+        "kind": "baijiu",
+        "cost": 64,
+        "servings": 14,
+        "units": 1.7,
+        "tags": ["rich", "fruity", "spiced"],
+        "rarity": "常备",
+        "edition": "基础版",
+    },
+    "harbor_ale": {
+        "name": "旧港琥珀艾尔",
+        "kind": "beer",
+        "cost": 34,
+        "servings": 8,
+        "units": 0.7,
+        "tags": ["bitter", "woody", "crisp"],
+        "rarity": "常备",
+        "edition": "基础版",
+    },
+    "orchard_cider": {
+        "name": "风坡苹果西打",
+        "kind": "cider",
+        "cost": 36,
+        "servings": 8,
+        "units": 0.65,
+        "tags": ["fruity", "sour", "crisp"],
+        "rarity": "常备",
+        "edition": "基础版",
+    },
+    "sun_mead": {
+        "name": "日轮蜂蜜酒",
+        "kind": "mead",
+        "cost": 45,
+        "servings": 10,
+        "units": 0.9,
+        "tags": ["sweet", "floral", "rich"],
+        "rarity": "常备",
+        "edition": "基础版",
+    },
+    "red_vermouth": {
+        "name": "绯叶甜味美思",
+        "kind": "vermouth",
+        "cost": 44,
+        "servings": 12,
+        "units": 0.75,
+        "tags": ["herbal", "bitter", "sweet"],
+        "rarity": "常备",
+        "edition": "基础版",
+    },
+    "island_shochu": {
+        "name": "离岛麦烧酒",
+        "kind": "shochu",
+        "cost": 47,
+        "servings": 12,
+        "units": 1.05,
+        "tags": ["dry", "woody", "crisp"],
+        "rarity": "常备",
+        "edition": "基础版",
+    },
+    "star_sparkling": {
+        "name": "星屑起泡酒",
+        "kind": "sparkling",
+        "cost": 54,
+        "servings": 8,
+        "units": 0.8,
+        "tags": ["floral", "fruity", "crisp"],
+        "rarity": "常备",
+        "edition": "基础版",
+    },
 }
 
 SPECIAL_PARTS = {
     "gin": [
         ("雾庭月桂金酒", ["herbal", "floral", "dry"], "月蚀小批次"),
         ("零度星港金酒", ["crisp", "floral", "bitter"], "极光纪念版"),
+        ("雨林夜航金酒", ["herbal", "sour", "spiced"], "季风限定版"),
     ],
     "rum": [
         ("沉船黑糖朗姆", ["sweet", "spiced", "smoky"], "旧海图典藏版"),
         ("双月陈年朗姆", ["rich", "fruity", "woody"], "双桶限定版"),
+        ("火山甘蔗朗姆", ["smoky", "fruity", "rich"], "黑沙岛纪念版"),
     ],
     "whisky": [
         ("灰鲸泥煤威士忌", ["smoky", "woody", "bitter"], "潮汐桶限定版"),
         ("水楢回声威士忌", ["woody", "floral", "spiced"], "十二年纪念版"),
+        ("极北雷鸣威士忌", ["smoky", "spiced", "dry"], "暴风桶强版"),
     ],
     "vodka": [
         ("彗尾冰晶伏特加", ["crisp", "dry", "floral"], "彗星批次"),
         ("白夜黑麦伏特加", ["dry", "spiced", "rich"], "冬至版"),
+        ("深海盐雾伏特加", ["crisp", "sour", "dry"], "潜航纪念版"),
     ],
     "tequila": [
         ("蓝焰陈年龙舌兰", ["herbal", "smoky", "rich"], "火山岩桶版"),
         ("沙海银龙舌兰", ["crisp", "spiced", "floral"], "流星限定版"),
+        ("仙人掌日冕龙舌兰", ["herbal", "sour", "dry"], "日食限定版"),
     ],
     "brandy": [
         ("无花果旧桶白兰地", ["fruity", "woody", "sweet"], "庄园私藏版"),
         ("时钟塔白兰地", ["rich", "spiced", "woody"], "百年纪念版"),
+        ("冬宫樱桃白兰地", ["fruity", "sour", "rich"], "落雪年份版"),
     ],
     "wine": [
         ("赤月谷红葡萄酒", ["fruity", "dry", "rich"], "赤月年份版"),
         ("云上花园白葡萄酒", ["floral", "crisp", "sour"], "浮岛限定版"),
+        ("黑曜庄园橙酒", ["bitter", "fruity", "woody"], "陶罐珍藏版"),
     ],
     "liqueur": [
         ("梦境蜂蜜利口酒", ["sweet", "floral", "rich"], "睡神典藏版"),
         ("苦艾绿时钟", ["herbal", "bitter", "spiced"], "午夜批次"),
+        ("熔岩可可利口酒", ["sweet", "smoky", "rich"], "红龙私藏版"),
+    ],
+    "sake": [
+        ("雪国雾酿", ["crisp", "floral", "dry"], "初雪限定版"),
+        ("月兔浊酒", ["sweet", "rich", "fruity"], "月宫小批次"),
+        ("深海盐花清酒", ["crisp", "sour", "floral"], "潮汐熟成版"),
+    ],
+    "baijiu": [
+        ("长安夜宴酒", ["rich", "fruity", "spiced"], "诗仙纪念版"),
+        ("青铜祭火酒", ["smoky", "herbal", "rich"], "古窖典藏版"),
+        ("天门清香酒", ["dry", "crisp", "floral"], "云巅限量版"),
+    ],
+    "beer": [
+        ("矮人熔炉黑啤", ["smoky", "bitter", "rich"], "矿坑桶藏版"),
+        ("银河啤酒花艾尔", ["floral", "bitter", "crisp"], "星云鲜酿版"),
+        ("雨季酸麦啤", ["sour", "fruity", "crisp"], "季风限定版"),
+    ],
+    "cider": [
+        ("女巫林黑莓西打", ["fruity", "sour", "herbal"], "月圆批次"),
+        ("金苹果干型西打", ["dry", "fruity", "crisp"], "丰收限定版"),
+        ("时间梨园西打", ["sweet", "floral", "woody"], "倒流年份版"),
+    ],
+    "mead": [
+        ("瓦尔哈拉蜂蜜酒", ["sweet", "spiced", "rich"], "英灵宴会版"),
+        ("沙漠藏红花蜜酒", ["floral", "spiced", "dry"], "绿洲私藏版"),
+        ("彗星蓝花蜜酒", ["floral", "sour", "crisp"], "百年回归版"),
+    ],
+    "vermouth": [
+        ("午夜苦橙美思", ["bitter", "fruity", "herbal"], "钟楼限定版"),
+        ("玫瑰航线干味美思", ["dry", "floral", "spiced"], "远洋批次"),
+        ("炼金师琥珀美思", ["herbal", "rich", "woody"], "秘方典藏版"),
+    ],
+    "shochu": [
+        ("火山甘薯烧酒", ["smoky", "sweet", "woody"], "黑土熟成版"),
+        ("雪岭荞麦烧酒", ["dry", "bitter", "crisp"], "冬藏版"),
+        ("海风黑糖烧酒", ["sweet", "fruity", "crisp"], "离岛限定版"),
+    ],
+    "sparkling": [
+        ("极光粉红气泡酒", ["floral", "fruity", "crisp"], "极夜纪念版"),
+        ("深空零重力起泡酒", ["dry", "crisp", "herbal"], "轨道站限定版"),
+        ("王冠金箔香槟", ["rich", "floral", "dry"], "加冕典藏版"),
     ],
 }
 
@@ -244,7 +372,270 @@ RECIPES: Dict[str, Dict[str, Any]] = {
         "price": 24,
         "unit_factor": 0.7,
     },
+    "sake_fizz": {
+        "name": "雪灯清酒菲士",
+        "kind": "sake",
+        "tags": ["sour", "floral", "crisp"],
+        "price": 29,
+        "unit_factor": 0.78,
+    },
+    "baijiu_sour": {
+        "name": "长安酸",
+        "kind": "baijiu",
+        "tags": ["sour", "rich", "fruity"],
+        "price": 36,
+        "unit_factor": 0.72,
+    },
+    "beer_flip": {
+        "name": "熔炉翻转",
+        "kind": "beer",
+        "tags": ["rich", "bitter", "spiced"],
+        "price": 25,
+        "unit_factor": 0.82,
+    },
+    "cider_cooler": {
+        "name": "果园晚风",
+        "kind": "cider",
+        "tags": ["fruity", "sour", "crisp"],
+        "price": 23,
+        "unit_factor": 0.75,
+    },
+    "mead_toddy": {
+        "name": "蜂巢热托地",
+        "kind": "mead",
+        "tags": ["sweet", "spiced", "rich"],
+        "price": 30,
+        "unit_factor": 0.88,
+    },
+    "vermouth_cobbler": {
+        "name": "绯叶库伯勒",
+        "kind": "vermouth",
+        "tags": ["herbal", "fruity", "crisp"],
+        "price": 28,
+        "unit_factor": 0.8,
+    },
+    "shochu_highball": {
+        "name": "离岛风球",
+        "kind": "shochu",
+        "tags": ["dry", "woody", "crisp"],
+        "price": 27,
+        "unit_factor": 0.72,
+    },
+    "sparkling_bellini": {
+        "name": "星屑贝里尼",
+        "kind": "sparkling",
+        "tags": ["fruity", "floral", "sweet"],
+        "price": 32,
+        "unit_factor": 0.8,
+    },
 }
+
+# 现实酒吧中长期流传的经典款。使用紧凑表维护，但进入游戏后与原有配方
+# 完全相同：会根据实际库存中的基酒改变风味、酒精量和售价。
+_REAL_COCKTAIL_EXPANSION = [
+    ("dry_martini", "干马天尼", "gin", ["dry", "herbal", "crisp"], 38, 1.00),
+    ("negroni", "尼格罗尼", "gin", ["bitter", "herbal", "rich"], 39, 0.95),
+    ("tom_collins", "汤姆柯林斯", "gin", ["sour", "sweet", "crisp"], 32, 0.78),
+    ("aviation", "航空", "gin", ["floral", "sour", "dry"], 40, 0.92),
+    ("french_75", "法兰西75", "gin", ["dry", "sour", "crisp"], 42, 0.86),
+    ("gin_fizz", "金菲士", "gin", ["sour", "sweet", "crisp"], 31, 0.76),
+    ("bees_knees", "蜜蜂之膝", "gin", ["sweet", "sour", "floral"], 35, 0.84),
+    ("last_word", "遗言", "gin", ["herbal", "sour", "rich"], 43, 0.95),
+    ("mojito", "莫吉托", "rum", ["herbal", "sour", "sweet", "crisp"], 32, 0.74),
+    ("mai_tai", "迈泰", "rum", ["fruity", "sour", "rich"], 43, 1.00),
+    ("cuba_libre", "自由古巴", "rum", ["sweet", "sour", "spiced"], 30, 0.82),
+    ("pina_colada", "椰林飘香", "rum", ["sweet", "fruity", "rich"], 36, 0.78),
+    ("dark_stormy", "黑暗风暴", "rum", ["spiced", "sour", "rich"], 35, 0.88),
+    ("hurricane", "飓风", "rum", ["fruity", "sweet", "sour"], 41, 1.05),
+    ("planters_punch", "种植园潘趣", "rum", ["fruity", "spiced", "sour"], 39, 0.96),
+    ("caipirinha", "卡琵莉亚", "rum", ["sour", "sweet", "crisp"], 34, 0.92),
+    ("manhattan", "曼哈顿", "whisky", ["woody", "bitter", "rich"], 43, 1.00),
+    ("whisky_sour", "威士忌酸", "whisky", ["sour", "sweet", "rich"], 38, 0.90),
+    ("mint_julep", "薄荷朱利普", "whisky", ["herbal", "sweet", "crisp"], 39, 0.92),
+    ("irish_coffee", "爱尔兰咖啡", "whisky", ["bitter", "sweet", "rich"], 42, 0.84),
+    ("rusty_nail", "锈钉", "whisky", ["sweet", "herbal", "rich"], 44, 1.02),
+    ("boulevardier", "林荫大道", "whisky", ["bitter", "woody", "rich"], 45, 1.00),
+    ("rob_roy", "罗布·罗伊", "whisky", ["woody", "herbal", "dry"], 42, 0.98),
+    ("penicillin", "盘尼西林", "whisky", ["smoky", "sour", "sweet"], 46, 0.94),
+    ("moscow_mule", "莫斯科骡子", "vodka", ["spiced", "sour", "crisp"], 33, 0.78),
+    ("bloody_mary", "血腥玛丽", "vodka", ["spiced", "sour", "rich"], 36, 0.82),
+    ("cosmopolitan", "大都会", "vodka", ["fruity", "sour", "crisp"], 38, 0.86),
+    ("espresso_martini", "浓缩咖啡马天尼", "vodka", ["bitter", "sweet", "rich"], 41, 0.90),
+    ("white_russian", "白俄罗斯", "vodka", ["sweet", "rich", "bitter"], 37, 0.92),
+    ("black_russian", "黑俄罗斯", "vodka", ["bitter", "sweet", "rich"], 35, 0.96),
+    ("screwdriver", "螺丝起子", "vodka", ["fruity", "sweet", "crisp"], 29, 0.75),
+    ("sea_breeze", "海风", "vodka", ["fruity", "sour", "crisp"], 31, 0.74),
+    ("margarita", "玛格丽特", "tequila", ["sour", "dry", "crisp"], 37, 0.88),
+    ("tequila_sunrise", "龙舌兰日出", "tequila", ["fruity", "sweet", "crisp"], 34, 0.80),
+    ("el_diablo", "暗黑破坏神", "tequila", ["fruity", "spiced", "sour"], 39, 0.90),
+    ("ranch_water", "牧场水", "tequila", ["dry", "sour", "crisp"], 32, 0.74),
+    ("brandy_alexander", "白兰地亚历山大", "brandy", ["sweet", "rich", "spiced"], 42, 0.88),
+    ("stinger", "毒刺", "brandy", ["herbal", "sweet", "rich"], 40, 0.94),
+    ("sazerac", "萨泽拉克", "brandy", ["bitter", "herbal", "rich"], 46, 1.02),
+    ("between_sheets", "床笫之间", "brandy", ["sour", "fruity", "rich"], 44, 0.98),
+    ("sangria", "桑格利亚", "wine", ["fruity", "sweet", "spiced"], 31, 0.76),
+    ("kalimotxo", "卡里莫求", "wine", ["sweet", "fruity", "rich"], 24, 0.70),
+    ("kir", "基尔", "wine", ["fruity", "sweet", "dry"], 30, 0.78),
+    ("wine_spritzer", "葡萄酒苏打", "wine", ["dry", "fruity", "crisp"], 25, 0.66),
+    ("grasshopper", "蚱蜢", "liqueur", ["sweet", "herbal", "rich"], 34, 0.82),
+    ("amaretto_sour", "杏仁酸", "liqueur", ["sweet", "sour", "rich"], 33, 0.86),
+    ("b_52", "B-52", "liqueur", ["sweet", "bitter", "rich"], 36, 0.90),
+    ("aperol_spritz", "阿佩罗橙光", "sparkling", ["bitter", "fruity", "crisp"], 35, 0.76),
+    ("mimosa", "含羞草", "sparkling", ["fruity", "sweet", "crisp"], 31, 0.68),
+    ("kir_royale", "皇家基尔", "sparkling", ["fruity", "dry", "crisp"], 38, 0.76),
+    ("sake_martini", "清酒马天尼", "sake", ["dry", "floral", "crisp"], 35, 0.90),
+    ("chu_hi", "烧酒嗨棒", "shochu", ["sour", "dry", "crisp"], 27, 0.72),
+    ("shandy", "香迪", "beer", ["sour", "sweet", "crisp"], 22, 0.62),
+    ("snakebite", "蛇咬", "cider", ["fruity", "bitter", "crisp"], 25, 0.74),
+    ("americano", "美式鸡尾酒", "vermouth", ["bitter", "herbal", "crisp"], 32, 0.78),
+]
+
+RECIPES.update(
+    {
+        item[0]: {
+            "name": item[1],
+            "kind": item[2],
+            "tags": item[3],
+            "price": item[4],
+            "unit_factor": item[5],
+        }
+        for item in _REAL_COCKTAIL_EXPANSION
+    }
+)
+
+# 影视、文学、游戏、神话与原创幻想世界中的酒。它们作为游商或商店限定
+# 瓶装酒出现，不保证每次开档都能遇见。
+_FICTIONAL_DRINK_EXPANSION = {
+    "beer": [
+        ("黄油啤酒", ["sweet", "spiced", "rich"], "魔法村冬季版"),
+        ("绿龙酒馆黑啤", ["smoky", "bitter", "rich"], "冒险者桶藏版"),
+        ("星际港口泡沫酒", ["crisp", "sour", "fruity"], "零重力罐装版"),
+        ("英雄庆功麦酒", ["sweet", "woody", "rich"], "终章纪念版"),
+    ],
+    "whisky": [
+        ("火焰威士忌", ["smoky", "spiced", "rich"], "巫师酒馆珍藏版"),
+        ("胜利牌琴酒式烈酒", ["dry", "bitter", "herbal"], "大洋国配给版"),
+        ("侦探壁炉威士忌", ["woody", "smoky", "dry"], "贝克街私藏版"),
+        ("西部仿生人威士忌", ["bitter", "woody", "rich"], "记忆测试版"),
+    ],
+    "rum": [
+        ("宾克斯之酒", ["fruity", "sweet", "spiced"], "海盗合唱版"),
+        ("黑珍珠船长朗姆", ["smoky", "sweet", "rich"], "诅咒金币版"),
+        ("骷髅岛甘蔗酒", ["fruity", "sour", "smoky"], "失落航线版"),
+        ("红线尽头朗姆", ["spiced", "rich", "woody"], "伟大航路典藏版"),
+    ],
+    "gin": [
+        ("潘银河系含漱爆破酒", ["sour", "bitter", "spiced"], "宇宙旅行指南版"),
+        ("罗慕兰蓝麦酒", ["crisp", "bitter", "floral"], "中立区违禁版"),
+        ("银翼霓虹琴酒", ["dry", "smoky", "bitter"], "雨夜复制人版"),
+        ("十三号时间琴酒", ["herbal", "sour", "dry"], "循环限定版"),
+    ],
+    "wine": [
+        ("醉生梦死", ["fruity", "woody", "bitter"], "荒漠记忆版"),
+        ("红堡夏日葡萄酒", ["fruity", "sweet", "spiced"], "王室宴会版"),
+        ("吸血伯爵夜宴红酒", ["rich", "fruity", "woody"], "永夜年份版"),
+        ("精灵月光葡萄酒", ["floral", "crisp", "dry"], "银叶森林版"),
+    ],
+    "mead": [
+        ("琼浆玉露", ["sweet", "floral", "rich"], "天宫宴饮版"),
+        ("英灵殿无尽蜜酒", ["sweet", "spiced", "rich"], "诸神黄昏前夜版"),
+        ("黄金苹果蜜酒", ["fruity", "sweet", "floral"], "永恒青春版"),
+        ("龙巢火蜜酒", ["smoky", "spiced", "sweet"], "鳞火封蜡版"),
+    ],
+    "sake": [
+        ("忘川酒", ["bitter", "floral", "dry"], "彼岸摆渡版"),
+        ("月读清酒", ["floral", "crisp", "bitter"], "无限夜限定版"),
+        ("狐狸婚礼浊酒", ["sweet", "fruity", "floral"], "太阳雨批次"),
+        ("百鬼夜行杯中月", ["herbal", "spiced", "dry"], "盂兰夜限定版"),
+    ],
+    "liqueur": [
+        ("莫洛托夫牛奶利口酒", ["sweet", "rich", "spiced"], "发条夜班版"),
+        ("爱神迷情剂", ["floral", "sweet", "fruity"], "误饮警告版"),
+        ("记忆删除剂", ["bitter", "herbal", "crisp"], "黑衣机构封存版"),
+        ("梦境第三层利口酒", ["sweet", "smoky", "floral"], "陀螺未停版"),
+    ],
+}
+
+for _kind, _items in _FICTIONAL_DRINK_EXPANSION.items():
+    SPECIAL_PARTS[_kind].extend(_items)
+
+DECOR_DEFS: Dict[str, Dict[str, Any]] = {
+    "neon": {
+        "name": "跨世界霓虹招牌",
+        "cost": 120,
+        "tags": ["crisp", "fruity"],
+        "desc": "门外不同文字会自动变成来客能读懂的名字",
+    },
+    "jukebox": {
+        "name": "旧宇宙点唱机",
+        "cost": 180,
+        "tags": ["rich", "spiced"],
+        "desc": "偶尔播放尚未诞生或早已失传的歌",
+    },
+    "aquarium": {
+        "name": "微型星海水族箱",
+        "cost": 210,
+        "tags": ["crisp", "floral"],
+        "desc": "让孤独或非人来客更愿意停留",
+    },
+    "mural": {
+        "name": "文明长卷壁画",
+        "cost": 150,
+        "tags": ["woody", "herbal"],
+        "desc": "画面会随着来客的记忆悄悄改变",
+    },
+    "fireplace": {
+        "name": "不熄余烬壁炉",
+        "cost": 260,
+        "tags": ["smoky", "rich"],
+        "desc": "为来自寒冷世界的客人保留一块暖处",
+    },
+    "garden": {
+        "name": "倒悬香草花园",
+        "cost": 230,
+        "tags": ["herbal", "floral"],
+        "desc": "提供会随月相变化的鲜香草",
+    },
+    "clock": {
+        "name": "多时间线挂钟",
+        "cost": 320,
+        "tags": ["bitter", "dry"],
+        "desc": "每根指针显示一个来客故乡的此刻",
+    },
+    "piano": {
+        "name": "会记住触碰的旧钢琴",
+        "cost": 380,
+        "tags": ["woody", "rich"],
+        "desc": "能续上客人多年以前没有弹完的旋律",
+    },
+}
+
+TRAVELING_VENDORS = [
+    {
+        "id": "fox_caravan",
+        "name": "九尾狐的夜行酒车",
+        "discount": 0.76,
+        "intro": "九尾狐把挂满铜铃的小车停在后门，声称今晚的货绝不等第二次月亮。",
+    },
+    {
+        "id": "star_peddler",
+        "name": "背星箱的行脚商",
+        "discount": 0.72,
+        "intro": "一个披着星图雨衣的人敲了三下门，背箱里每只瓶子都在轻微失重。",
+    },
+    {
+        "id": "old_cellarmaster",
+        "name": "迷路的老酒窖师",
+        "discount": 0.82,
+        "intro": "白发酒窖师推着吱呀作响的木车出现，说自己又从一条不存在的街绕了回来。",
+    },
+    {
+        "id": "rift_siblings",
+        "name": "裂隙商队双胞胎",
+        "discount": 0.79,
+        "intro": "两个说话完全同步的商人从窄巷裂隙里挤出来，把几只典藏箱摆到门边。",
+    },
+]
 
 UPGRADE_DEFS: Dict[str, Dict[str, Any]] = {
     "cellar": {
@@ -413,7 +804,416 @@ BUILTIN_GUESTS: List[Dict[str, Any]] = [
         "temperament": "常把别人的回忆误认为自己的",
         "ethos": "memory",
     },
+    {
+        "id": "su_shi",
+        "name": "苏轼",
+        "origin": "北宋·历史来客（虚构化重构）",
+        "likes": ["rich", "fruity", "herbal"],
+        "dislikes": ["dry"],
+        "budget": 56,
+        "rarity": "uncommon",
+        "temperament": "豁达、爱吃，也会在笑里藏住失意",
+        "ethos": "resilience",
+    },
+    {
+        "id": "wu_zetian",
+        "name": "武则天",
+        "origin": "唐与武周·历史来客（虚构化重构）",
+        "likes": ["floral", "bitter", "rich"],
+        "dislikes": ["sour"],
+        "budget": 92,
+        "rarity": "rare",
+        "temperament": "威严、耐心，习惯看穿试探",
+        "ethos": "power",
+    },
+    {
+        "id": "leonardo",
+        "name": "列奥纳多·达·芬奇",
+        "origin": "文艺复兴时期·历史来客（虚构化重构）",
+        "likes": ["herbal", "floral", "sour"],
+        "dislikes": ["rich"],
+        "budget": 61,
+        "rarity": "rare",
+        "temperament": "什么都想拆开研究，常忘记喝完杯里的酒",
+        "ethos": "curiosity",
+    },
+    {
+        "id": "murasaki",
+        "name": "紫式部",
+        "origin": "平安时代·历史来客（虚构化重构）",
+        "likes": ["floral", "dry", "fruity"],
+        "dislikes": ["smoky"],
+        "budget": 52,
+        "rarity": "uncommon",
+        "temperament": "寡言而敏锐，擅长观察关系里的暗流",
+        "ethos": "story",
+    },
+    {
+        "id": "sappho",
+        "name": "萨福",
+        "origin": "古希腊莱斯博斯岛·历史来客（虚构化重构）",
+        "likes": ["floral", "fruity", "sour"],
+        "dislikes": ["bitter"],
+        "budget": 49,
+        "rarity": "rare",
+        "temperament": "热烈、坦率，对语言的节奏极其挑剔",
+        "ethos": "desire",
+    },
+    {
+        "id": "rumi",
+        "name": "鲁米",
+        "origin": "十三世纪波斯·历史来客（虚构化重构）",
+        "likes": ["sweet", "spiced", "floral"],
+        "dislikes": ["crisp"],
+        "budget": 47,
+        "rarity": "rare",
+        "temperament": "温柔而炽烈，总把问题带回人的内心",
+        "ethos": "love",
+    },
+    {
+        "id": "shakespeare",
+        "name": "威廉·莎士比亚",
+        "origin": "伊丽莎白时代伦敦·历史来客（虚构化重构）",
+        "likes": ["rich", "bitter", "fruity"],
+        "dislikes": ["dry"],
+        "budget": 58,
+        "rarity": "uncommon",
+        "temperament": "健谈、戏剧化，容易把邻桌争吵写成独白",
+        "ethos": "theatre",
+    },
+    {
+        "id": "tesla",
+        "name": "尼古拉·特斯拉",
+        "origin": "二十世纪纽约·历史来客（虚构化重构）",
+        "likes": ["crisp", "bitter", "dry"],
+        "dislikes": ["sweet"],
+        "budget": 45,
+        "rarity": "rare",
+        "temperament": "克制、孤独，对规律与数字近乎执拗",
+        "ethos": "invention",
+    },
+    {
+        "id": "frida_kahlo",
+        "name": "弗里达·卡罗",
+        "origin": "二十世纪墨西哥·历史来客（虚构化重构）",
+        "likes": ["spiced", "fruity", "smoky"],
+        "dislikes": ["crisp"],
+        "budget": 63,
+        "rarity": "uncommon",
+        "temperament": "锋利、诚实，不允许别人替她解释痛苦",
+        "ethos": "self",
+    },
+    {
+        "id": "joan_of_arc",
+        "name": "贞德",
+        "origin": "十五世纪法国·历史来客（虚构化重构）",
+        "likes": ["dry", "herbal", "crisp"],
+        "dislikes": ["sweet"],
+        "budget": 38,
+        "rarity": "rare",
+        "temperament": "年轻、坚定，对自己的声音深信不疑",
+        "ethos": "faith",
+    },
+    {
+        "id": "sun_wukong",
+        "name": "孙悟空",
+        "origin": "东方神魔传说·神话来客",
+        "likes": ["fruity", "spiced", "rich"],
+        "dislikes": ["bitter"],
+        "budget": 73,
+        "rarity": "rare",
+        "temperament": "好胜、聪明，最烦繁文缛节",
+        "ethos": "freedom",
+    },
+    {
+        "id": "anansi",
+        "name": "阿南西",
+        "origin": "西非与加勒比传说·神话来客",
+        "likes": ["sweet", "spiced", "bitter"],
+        "dislikes": ["dry"],
+        "budget": 55,
+        "rarity": "uncommon",
+        "temperament": "以故事换酒，也会把别人的秘密织进网里",
+        "ethos": "trick",
+    },
+    {
+        "id": "athena",
+        "name": "雅典娜",
+        "origin": "古希腊神话·神话来客",
+        "likes": ["dry", "herbal", "woody"],
+        "dislikes": ["sweet"],
+        "budget": 82,
+        "rarity": "rare",
+        "temperament": "冷静、讲求策略，不轻易接受奉承",
+        "ethos": "strategy",
+    },
+    {
+        "id": "odin",
+        "name": "奥丁",
+        "origin": "北欧神话·神话来客",
+        "likes": ["smoky", "bitter", "rich"],
+        "dislikes": ["floral"],
+        "budget": 90,
+        "rarity": "rare",
+        "temperament": "沉默而不安，为知识愿意付出危险代价",
+        "ethos": "knowledge",
+    },
+    {
+        "id": "inanna",
+        "name": "伊南娜",
+        "origin": "苏美尔神话·神话来客",
+        "likes": ["floral", "rich", "spiced"],
+        "dislikes": ["crisp"],
+        "budget": 86,
+        "rarity": "rare",
+        "temperament": "华丽、强势，从不把欲望说成罪过",
+        "ethos": "desire",
+    },
+    {
+        "id": "quetzalcoatl",
+        "name": "羽蛇神",
+        "origin": "中部美洲神话·神话来客",
+        "likes": ["herbal", "fruity", "crisp"],
+        "dislikes": ["smoky"],
+        "budget": 78,
+        "rarity": "rare",
+        "temperament": "平静、古老，对文明兴衰有漫长耐心",
+        "ethos": "creation",
+    },
+    {
+        "id": "sedna",
+        "name": "塞德娜",
+        "origin": "因纽特神话·海底来客",
+        "likes": ["crisp", "sour", "bitter"],
+        "dislikes": ["smoky"],
+        "budget": 64,
+        "rarity": "rare",
+        "temperament": "疏离、戒备，厌恶未经允许的触碰",
+        "ethos": "ocean",
+    },
+    {
+        "id": "anubis",
+        "name": "阿努比斯",
+        "origin": "古埃及神话·神话来客",
+        "likes": ["dry", "woody", "spiced"],
+        "dislikes": ["sweet"],
+        "budget": 75,
+        "rarity": "uncommon",
+        "temperament": "公正、克制，能听见人话语里的重量",
+        "ethos": "judgment",
+    },
+    {
+        "id": "alice",
+        "name": "爱丽丝",
+        "origin": "仙境·经典文学来客",
+        "likes": ["sweet", "sour", "floral"],
+        "dislikes": ["smoky"],
+        "budget": 32,
+        "rarity": "uncommon",
+        "temperament": "好奇、讲理，但已经习惯荒谬",
+        "ethos": "wonder",
+    },
+    {
+        "id": "sherlock_holmes",
+        "name": "夏洛克·福尔摩斯",
+        "origin": "贝克街·经典文学来客",
+        "likes": ["dry", "bitter", "herbal"],
+        "dislikes": ["sweet"],
+        "budget": 59,
+        "rarity": "rare",
+        "temperament": "敏锐、傲慢，会从杯沿推断老板昨晚几点睡",
+        "ethos": "reason",
+    },
+    {
+        "id": "dracula",
+        "name": "德古拉伯爵",
+        "origin": "特兰西瓦尼亚·经典文学来客",
+        "likes": ["rich", "fruity", "woody"],
+        "dislikes": ["crisp"],
+        "budget": 97,
+        "rarity": "rare",
+        "temperament": "古老、礼貌，礼貌本身带着威胁",
+        "ethos": "hunger",
+    },
+    {
+        "id": "don_quixote",
+        "name": "堂吉诃德",
+        "origin": "拉曼恰·经典文学来客",
+        "likes": ["fruity", "spiced", "dry"],
+        "dislikes": ["bitter"],
+        "budget": 35,
+        "rarity": "common",
+        "temperament": "庄严、善良，把冰桶认成被困的骑士",
+        "ethos": "ideal",
+    },
+    {
+        "id": "captain_nemo",
+        "name": "尼摩船长",
+        "origin": "鹦鹉螺号·经典文学来客",
+        "likes": ["crisp", "bitter", "smoky"],
+        "dislikes": ["sweet"],
+        "budget": 71,
+        "rarity": "rare",
+        "temperament": "博学、孤绝，对陆地政权保持敌意",
+        "ethos": "exile",
+    },
+    {
+        "id": "frankenstein_creature",
+        "name": "无名造物",
+        "origin": "极地航线·经典文学来客",
+        "likes": ["woody", "floral", "rich"],
+        "dislikes": ["bitter"],
+        "budget": 41,
+        "rarity": "rare",
+        "temperament": "敏感、渴望被理解，对怜悯格外警惕",
+        "ethos": "belonging",
+    },
+    {
+        "id": "last_cartographer",
+        "name": "末日地图师",
+        "origin": "被海水吞没的第九大陆·人类",
+        "likes": ["dry", "woody", "sour"],
+        "dislikes": ["sweet"],
+        "budget": 44,
+        "rarity": "common",
+        "temperament": "谨慎，仍在绘制已经不存在的道路",
+        "ethos": "record",
+    },
+    {
+        "id": "dream_taxer",
+        "name": "梦境税务官",
+        "origin": "睡眠管理局·概念生命",
+        "likes": ["bitter", "sweet", "herbal"],
+        "dislikes": ["crisp"],
+        "budget": 69,
+        "rarity": "uncommon",
+        "temperament": "一板一眼，会查验客人昨夜梦境的完税证明",
+        "ethos": "bureaucracy",
+    },
+    {
+        "id": "blackhole_singer",
+        "name": "黑洞边缘的歌者",
+        "origin": "天鹅座回声带·引力生命",
+        "likes": ["rich", "smoky", "floral"],
+        "dislikes": ["dry"],
+        "budget": 88,
+        "rarity": "rare",
+        "temperament": "说话极慢，每个音节都像被时间拉长",
+        "ethos": "gravity",
+    },
+    {
+        "id": "palace_cook",
+        "name": "失业的御膳房厨子",
+        "origin": "已覆灭王朝·普通人",
+        "likes": ["spiced", "sour", "rich"],
+        "dislikes": ["floral"],
+        "budget": 39,
+        "rarity": "common",
+        "temperament": "嘴硬、手艺极好，正在重新学习为自己做饭",
+        "ethos": "survival",
+    },
+    {
+        "id": "retired_villain",
+        "name": "退休反派",
+        "origin": "停更的英雄宇宙·前终极敌人",
+        "likes": ["bitter", "smoky", "sweet"],
+        "dislikes": ["crisp"],
+        "budget": 76,
+        "rarity": "uncommon",
+        "temperament": "厌倦宏大计划，只想抱怨英雄不报销加班费",
+        "ethos": "disillusion",
+    },
+    {
+        "id": "climate_refugee",
+        "name": "来自2089年的气候难民",
+        "origin": "未来沿海迁徙带·人类",
+        "likes": ["crisp", "fruity", "sour"],
+        "dislikes": ["smoky"],
+        "budget": 33,
+        "rarity": "common",
+        "temperament": "务实、警觉，对一杯干净的冰水也心怀感激",
+        "ethos": "future",
+    },
+    {
+        "id": "ghost_radio",
+        "name": "午夜幽灵电台主持人",
+        "origin": "不存在的FM 00.0·幽灵",
+        "likes": ["woody", "bitter", "floral"],
+        "dislikes": ["sweet"],
+        "budget": 51,
+        "rarity": "uncommon",
+        "temperament": "声音温柔，只为仍醒着的人播送失踪消息",
+        "ethos": "voice",
+    },
+    {
+        "id": "young_planet",
+        "name": "刚学会做梦的幼年行星",
+        "origin": "猎户臂育星室·天体意识",
+        "likes": ["sweet", "floral", "crisp"],
+        "dislikes": ["bitter"],
+        "budget": 84,
+        "rarity": "rare",
+        "temperament": "天真、庞大，会因情绪变化引起轻微潮汐",
+        "ethos": "birth",
+    },
 ]
+
+# 第二批固定来客。与前面的详细人物卡合计81位；每位仍有独立来处、口味、
+# 预算、性格和价值立场，不用临时拼接名字冒充新客人。
+_GUEST_EXPANSION = [
+    ("hypatia", "希帕提娅", "古代亚历山大里亚·历史来客（虚构化重构）", ["dry", "herbal", "floral"], ["sweet"], 57, "rare", "理性、镇定，不向暴力让出思考", "reason"),
+    ("mansa_musa", "曼萨·穆萨", "十四世纪马里帝国·历史来客（虚构化重构）", ["rich", "spiced", "sweet"], ["sour"], 99, "rare", "慷慨、庄重，也清楚财富会改变沿途秩序", "wealth"),
+    ("zheng_he", "郑和", "明代远洋船队·历史来客（虚构化重构）", ["crisp", "spiced", "woody"], ["sweet"], 68, "uncommon", "沉稳、见闻广，习惯先确认风向", "voyage"),
+    ("ibn_battuta", "伊本·白图泰", "十四世纪旅行世界·历史来客（虚构化重构）", ["fruity", "herbal", "sour"], ["smoky"], 53, "uncommon", "健谈、适应力强，能把一杯酒连到三座城", "journey"),
+    ("hatshepsut", "哈特谢普苏特", "古埃及第十八王朝·历史来客（虚构化重构）", ["floral", "rich", "dry"], ["bitter"], 87, "rare", "沉着、务实，知道权力也需要被建造", "rule"),
+    ("marie_curie", "玛丽·居里", "二十世纪巴黎·历史来客（虚构化重构）", ["dry", "bitter", "crisp"], ["sweet"], 46, "rare", "专注、寡言，不浪漫化代价", "science"),
+    ("tagore", "泰戈尔", "近代孟加拉·历史来客（虚构化重构）", ["floral", "fruity", "herbal"], ["smoky"], 50, "uncommon", "温和、深邃，常在日常里看见辽阔", "poetry"),
+    ("genghis_khan", "成吉思汗", "十三世纪草原·历史来客（虚构化重构）", ["rich", "smoky", "sour"], ["floral"], 79, "rare", "直接、警觉，以结果衡量承诺", "conquest"),
+    ("beethoven", "路德维希·凡·贝多芬", "十九世纪维也纳·历史来客（虚构化重构）", ["bitter", "rich", "woody"], ["sweet"], 55, "uncommon", "暴躁、敏感，会用指节敲出杯中节拍", "music"),
+    ("ching_shih", "郑一嫂", "清代南海·历史来客（虚构化重构）", ["dry", "spiced", "smoky"], ["floral"], 83, "rare", "冷静、守规矩，但规矩由她亲自制定", "command"),
+    ("mary_shelley", "玛丽·雪莱", "十九世纪英国·历史来客（虚构化重构）", ["woody", "bitter", "floral"], ["sweet"], 54, "uncommon", "敏锐、忧郁，对创造者的责任毫不留情", "creation"),
+    ("harriet_tubman", "哈丽雅特·塔布曼", "十九世纪美国·历史来客（虚构化重构）", ["dry", "herbal", "rich"], ["sweet"], 43, "rare", "坚定、谨慎，进入房间先看所有出口", "freedom"),
+    ("gilgamesh", "吉尔伽美什", "美索不达米亚史诗·传说来客", ["rich", "spiced", "bitter"], ["crisp"], 91, "rare", "傲慢而悲伤，仍不肯承认自己畏惧死亡", "mortality"),
+    ("mazu", "妈祖", "中国东南海洋信仰·神话来客", ["crisp", "floral", "herbal"], ["smoky"], 62, "rare", "温和、坚定，会留意每个晚归的人", "protection"),
+    ("raijin", "雷神建御雷", "日本雷霆传说·神话来客", ["spiced", "smoky", "sour"], ["sweet"], 71, "uncommon", "脾气响亮，笑声会让杯架轻轻震动", "storm"),
+    ("kali", "迦梨", "印度神话·神话来客", ["bitter", "spiced", "rich"], ["floral"], 89, "rare", "骇人而清醒，拒绝把毁灭与邪恶混为一谈", "time"),
+    ("freyja", "芙蕾雅", "北欧神话·神话来客", ["floral", "fruity", "rich"], ["dry"], 81, "rare", "华美、强悍，既懂爱欲也懂战争", "desire"),
+    ("coyote", "郊狼", "北美原住民传说·神话来客", ["sour", "smoky", "sweet"], ["dry"], 48, "uncommon", "滑稽、危险，总在规则边缘挖洞", "trick"),
+    ("pele", "佩蕾", "夏威夷火山传说·神话来客", ["smoky", "spiced", "rich"], ["crisp"], 77, "rare", "热烈、易怒，情绪落下时像新生的黑色土地", "fire"),
+    ("baba_yaga", "芭芭雅嘎", "斯拉夫民间传说·神话来客", ["herbal", "bitter", "smoky"], ["sweet"], 66, "uncommon", "刻薄、聪明，帮助别人时也要收取奇怪代价", "threshold"),
+    ("erlang_shen", "二郎神", "东方神魔传说·神话来客", ["dry", "woody", "bitter"], ["sweet"], 74, "rare", "自律、冷峻，第三只眼不接受含糊借口", "duty"),
+    ("hades", "哈迪斯", "古希腊冥界·神话来客", ["woody", "bitter", "rich"], ["floral"], 93, "rare", "沉默、守约，对自己的职责毫无浪漫幻想", "underworld"),
+    ("odysseus", "奥德修斯", "爱琴海史诗·经典文学来客", ["dry", "fruity", "smoky"], ["sweet"], 64, "uncommon", "机警、善辩，讲归途时会故意漏掉关键细节", "return"),
+    ("hamlet", "哈姆雷特", "艾尔西诺城堡·经典文学来客", ["bitter", "woody", "dry"], ["sweet"], 52, "uncommon", "多疑、敏感，一杯酒也能被他推演成生死问题", "doubt"),
+    ("jane_eyre", "简·爱", "桑菲尔德庄园·经典文学来客", ["dry", "floral", "woody"], ["sweet"], 39, "uncommon", "克制、独立，不用财富衡量人格", "dignity"),
+    ("elizabeth_bennet", "伊丽莎白·班纳特", "摄政时期英国·经典文学来客", ["fruity", "sour", "dry"], ["rich"], 44, "common", "机敏、爱笑，对傲慢有天然抵抗力", "judgment"),
+    ("jean_valjean", "冉·阿让", "十九世纪法国·经典文学来客", ["woody", "herbal", "rich"], ["sweet"], 37, "common", "沉静、警觉，把善意看成需要用一生偿还的债", "mercy"),
+    ("arsene_lupin", "亚森·罗平", "美好年代巴黎·经典文学来客", ["floral", "dry", "spiced"], ["smoky"], 72, "rare", "优雅、狡黠，可能已经替老板结过一张假账", "theft"),
+    ("mulan_legend", "木兰", "东方民间叙事·传说来客", ["dry", "herbal", "crisp"], ["sweet"], 47, "uncommon", "安静、坚韧，不喜欢别人替她决定该成为什么", "duty"),
+    ("snow_queen", "冰雪女王", "北方童话·经典文学来客", ["crisp", "dry", "floral"], ["spiced"], 85, "rare", "冷淡、精确，杯壁会在她指间结霜", "cold"),
+    ("alien_beekeeper", "外星养蜂人", "蜂巢行星N-4·硅基旅人", ["sweet", "floral", "sour"], ["smoky"], 60, "uncommon", "耐心、温柔，随身蜂群会对谎言发出蓝光", "hive"),
+    ("emotion_appraiser", "情绪估价师", "第二人格交易所·概念生命", ["bitter", "fruity", "rich"], ["crisp"], 65, "uncommon", "礼貌、冷酷，能报出一句道歉的市场价", "value"),
+    ("cloud_archivist", "云层档案员", "对流层第六资料馆·气态生命", ["floral", "crisp", "herbal"], ["rich"], 58, "common", "轻声细语，衣袖里不断落出过期天气", "archive"),
+    ("parallel_widow", "平行世界的未亡人", "未发生的战争时间线·人类", ["woody", "sour", "floral"], ["sweet"], 49, "rare", "平静、哀伤，记得一个在本世界从未出生的人", "grief"),
+    ("android_monk", "仿生僧侣", "火星静默寺·机械生命", ["dry", "bitter", "herbal"], ["sweet"], 45, "uncommon", "平和、严谨，正在验证觉悟是否可被编译", "mind"),
+    ("deadstar_miner", "死星矿工", "坍缩恒星采掘带·人类", ["smoky", "rich", "spiced"], ["floral"], 70, "common", "粗粝、寡言，肺里还留着金属尘的味道", "labor"),
+    ("door_collector", "门的收藏家", "无地址博物馆·非人存在", ["woody", "herbal", "sour"], ["crisp"], 78, "rare", "彬彬有礼，声称每扇门都通往一次后悔", "threshold"),
+]
+
+BUILTIN_GUESTS.extend(
+    {
+        "id": item[0],
+        "name": item[1],
+        "origin": item[2],
+        "likes": item[3],
+        "dislikes": item[4],
+        "budget": item[5],
+        "rarity": item[6],
+        "temperament": item[7],
+        "ethos": item[8],
+    }
+    for item in _GUEST_EXPANSION
+)
 
 
 def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
@@ -487,8 +1287,20 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "cash": 460,
         "inventory": {},
         "prices": {},
+        "house_recipes": {},
+        "recipe_no": 0,
         "market": [],
         "market_no": 0,
+        "vendor": None,
+        "decorations": {},
+        "ledger": [
+            {
+                "visit": 0,
+                "amount": 460,
+                "balance": 460,
+                "reason": "酒馆启动资金",
+            }
+        ],
         "turn": 0,
         "visit": 0,
         "records": {},
@@ -518,6 +1330,11 @@ def _load() -> Dict[str, Any]:
     state = json.loads(SAVE_PATH.read_text(encoding="utf-8"))
     if state.get("version") != VERSION:
         raise ValueError("存档版本不兼容。")
+    state.setdefault("house_recipes", {})
+    state.setdefault("recipe_no", len(state["house_recipes"]))
+    state.setdefault("vendor", None)
+    state.setdefault("decorations", {})
+    state.setdefault("ledger", [])
     state.setdefault("play_mode", "autonomous")
     state.setdefault("upgrades", {})
     for upgrade_id in UPGRADE_DEFS:
@@ -546,28 +1363,70 @@ def _make_special(state: Dict[str, Any], kind: str) -> Dict[str, Any]:
 
 def _refresh_market(state: Dict[str, Any], starter: bool = False) -> None:
     state["market_no"] += 1
-    offers = []
-    base_ids = list(BASE_PRODUCTS)
-    if starter:
-        selected = base_ids
-    else:
-        selected = []
-        bag = list(base_ids)
-        while bag and len(selected) < 5:
-            item = _choice(state, bag)
-            bag.remove(item)
-            selected.append(item)
-    for product_id in selected:
+    offers: List[Dict[str, Any]] = []
+    for product_id in BASE_PRODUCTS:
         product = dict(BASE_PRODUCTS[product_id])
         product["id"] = product_id
+        product["seller"] = "空杯俱乐部常驻商店"
+        product["stock"] = 99
         offers.append(product)
     if not starter:
         kinds = list(SPECIAL_PARTS)
-        for _ in range(3):
-            offers.append(_make_special(state, _choice(state, kinds)))
+        for _ in range(4):
+            product = _make_special(state, _choice(state, kinds))
+            product["seller"] = "空杯俱乐部常驻商店"
+            product["stock"] = 2
+            offers.append(product)
     for index, offer in enumerate(offers, 1):
-        offer["offer_id"] = "o%d" % index
+        offer["offer_id"] = "s%d" % index
     state["market"] = offers
+
+
+def _cash_change(
+    state: Dict[str, Any], amount: int, reason: str, session_bucket: Optional[str] = None
+) -> None:
+    amount = int(amount)
+    state["cash"] += amount
+    if session_bucket == "revenue" and amount > 0:
+        state["session"]["revenue"] += amount
+    elif session_bucket == "spend" and amount < 0:
+        state["session"]["spend"] += -amount
+    state.setdefault("ledger", []).append(
+        {
+            "visit": state["visit"],
+            "amount": amount,
+            "balance": state["cash"],
+            "reason": reason,
+        }
+    )
+    state["ledger"] = state["ledger"][-100:]
+
+
+def _open_traveling_vendor(state: Dict[str, Any]) -> str:
+    definition = _choice(state, TRAVELING_VENDORS)
+    offers = []
+    kinds = list(SPECIAL_PARTS)
+    for index in range(1, 7):
+        product = _make_special(state, _choice(state, kinds))
+        product["original_cost"] = product["cost"]
+        product["cost"] = max(1, int(round(product["cost"] * definition["discount"])))
+        product["offer_id"] = "v%d" % index
+        product["seller"] = definition["name"]
+        product["stock"] = 1
+        offers.append(product)
+    state["vendor"] = {
+        "id": definition["id"],
+        "name": definition["name"],
+        "intro": definition["intro"],
+        "offers": offers,
+    }
+    lines = [
+        "🛒 随机游商出现：%s" % definition["name"],
+        definition["intro"],
+        "这批新品和典藏酒只停留到场景推进，价格低于常驻商店。用 vendor 查看，用 buy <货号> 进货。",
+    ]
+    state["session"]["highlights"].append("随机游商%s到访" % definition["name"])
+    return "\n".join(lines)
 
 
 def _tag_text(tags: Sequence[str]) -> str:
@@ -720,6 +1579,12 @@ def _guest_weight(state: Dict[str, Any], card: Dict[str, Any]) -> float:
         weight *= 1.2
     match = len(set(card["likes"]) & set(state["owner_likes"]))
     weight *= 0.92 + min(match, 2) * 0.18
+    decor_tags = {
+        tag
+        for decor_id in state.get("decorations", {})
+        for tag in DECOR_DEFS.get(decor_id, {}).get("tags", [])
+    }
+    weight *= 1.0 + min(len(set(card["likes"]) & decor_tags), 2) * 0.04
     if card.get("rarity") == "rare":
         weight *= 1.0 + state["upgrades"].get("portal", 0) * 0.22
     return max(0.12, weight)  # 气质永远不会把任何人排除。
@@ -752,6 +1617,11 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
+    state["vendor"] = None
+    vendor_chance = 0.18 + state["upgrades"].get("portal", 0) * 0.025
+    if _rand(state) < vendor_chance:
+        state["active_guests"] = []
+        return _open_traveling_vendor(state)
     if not force and _rand(state) < 0.22:
         quiet = _choice(
             state,
@@ -784,6 +1654,10 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
             {
                 "id": card["id"],
                 "served": False,
+                "served_count": 0,
+                "drinks": [],
+                "spent": 0,
+                "closed": False,
                 "request": request,
                 "npc_drunk": 0.0,
             }
@@ -814,13 +1688,19 @@ def _inventory_kinds(state: Dict[str, Any]) -> set:
     }
 
 
+def _all_recipes(state: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    recipes = dict(RECIPES)
+    recipes.update(state.get("house_recipes", {}))
+    return recipes
+
+
 def _find_source(state: Dict[str, Any], drink_id: str) -> Optional[Dict[str, Any]]:
     inventory = state["inventory"]
     if drink_id.startswith("pour:"):
         product_id = drink_id.split(":", 1)[1]
         item = inventory.get(product_id)
         return item if item and item["remaining"] > 0 else None
-    recipe = RECIPES.get(drink_id)
+    recipe = _all_recipes(state).get(drink_id)
     if not recipe:
         return None
     choices = [
@@ -845,7 +1725,7 @@ def _drink_profile(state: Dict[str, Any], drink_id: str) -> Optional[Dict[str, A
             "units": float(source["units"]),
             "source": source,
         }
-    recipe = RECIPES[drink_id]
+    recipe = _all_recipes(state)[drink_id]
     return {
         "id": drink_id,
         "name": recipe["name"],
@@ -855,10 +1735,11 @@ def _drink_profile(state: Dict[str, Any], drink_id: str) -> Optional[Dict[str, A
     }
 
 
-def _default_price(profile: Dict[str, Any]) -> int:
+def _default_price(state: Dict[str, Any], profile: Dict[str, Any]) -> int:
     drink_id = profile["id"]
-    if drink_id in RECIPES:
-        return int(RECIPES[drink_id]["price"])
+    recipe = _all_recipes(state).get(drink_id)
+    if recipe:
+        return int(recipe["price"])
     source = profile["source"]
     rarity_add = {"常备": 0, "少见": 7, "稀有": 14, "典藏": 24}.get(
         source["rarity"], 0
@@ -867,7 +1748,7 @@ def _default_price(profile: Dict[str, Any]) -> int:
 
 
 def _price(state: Dict[str, Any], profile: Dict[str, Any]) -> int:
-    return int(state["prices"].get(profile["id"], _default_price(profile)))
+    return int(state["prices"].get(profile["id"], _default_price(state, profile)))
 
 
 def _consume(state: Dict[str, Any], profile: Dict[str, Any], count: int) -> bool:
@@ -1001,6 +1882,7 @@ def _score_guest(
     if intox >= 42:
         score -= int((intox - 38) * 0.22)
     score += state["upgrades"].get("glassware", 0) * 3
+    score += min(len(state.get("decorations", {})), 5)
     score += int((_rand(state) - 0.5) * 8)
     return int(_clamp(score, 0, 100))
 
@@ -1011,8 +1893,21 @@ def _serve_guest(
     active = next((g for g in state["active_guests"] if g["id"] == guest_id), None)
     if not active:
         return "这位客人现在不在店里。"
-    if active["served"]:
-        return "这位客人已经拿到酒了。可以 next 让场景继续。"
+    served_count = int(
+        active.get("served_count", 1 if active.get("served") else 0)
+    )
+    active.setdefault("served_count", served_count)
+    active.setdefault("drinks", [])
+    active.setdefault("spent", 0)
+    active.setdefault("closed", False)
+    if active["closed"]:
+        return "这位客人已经结束今晚的酒单。"
+    if served_count >= 4 or float(active.get("npc_drunk", 0.0)) >= 75:
+        active["closed"] = True
+        active["served"] = True
+        return "这位客人已经喝到今晚的上限，不再继续加酒。"
+    if drink_id in active["drinks"]:
+        return "这位客人这轮已经喝过这杯了。若继续，请推荐不同的酒。"
     card = _guest_record(state, next(c for c in _all_guest_cards(state) if c["id"] == guest_id))[
         "card"
     ]
@@ -1023,16 +1918,29 @@ def _serve_guest(
     if not _consume(state, profile, portions):
         return "剩余酒量不够%s杯。" % portions
     price = _price(state, profile)
-    satisfaction = _score_guest(state, card, active["request"], profile, price)
+    score_card = dict(card)
+    score_card["budget"] = max(0, int(card["budget"]) - int(active["spent"]))
+    satisfaction = _score_guest(
+        state, score_card, active["request"], profile, price
+    )
     active["npc_drunk"] = round(
         _clamp(float(active.get("npc_drunk", 0.0)) + profile["units"] * 18.0), 1
     )
     tip = int(round(price * 0.18)) if satisfaction >= 88 else (
         int(round(price * 0.08)) if satisfaction >= 75 else 0
     )
-    state["cash"] += price + tip
-    state["session"]["revenue"] += price + tip
+    before_cash = state["cash"]
+    _cash_change(
+        state,
+        price + tip,
+        "%s购买%s%s"
+        % (card["name"], profile["name"], ("并给小费%d点" % tip) if tip else ""),
+        "revenue",
+    )
     active["served"] = True
+    active["served_count"] = served_count + 1
+    active["drinks"].append(drink_id)
+    active["spent"] = int(active["spent"]) + price + tip
     record = state["records"][guest_id]
     record["served"] += 1
     record["trust"] = int(_clamp(record["trust"] + (satisfaction - 55) / 12, -20, 50))
@@ -1064,6 +1972,7 @@ def _serve_guest(
         _npc_reaction(state, card, profile, satisfaction),
         "满意度：%d/100｜关系：%+d" % (satisfaction, record["trust"]),
         _npc_body_line(card, active["npc_drunk"]),
+        "资金：%d→%d点" % (before_cash, state["cash"]),
     ]
     if satisfaction >= 90:
         state["session"]["highlights"].append(
@@ -1080,6 +1989,21 @@ def _serve_guest(
             {"visit": state["visit"], "event": "老板与%s共饮" % card["name"]}
         )
         lines.extend([_owner_tasting(state, profile), _body_line(state, trend)])
+    if (
+        active["served_count"] < 4
+        and active["npc_drunk"] < 65
+        and active["spent"] < int(card["budget"])
+    ):
+        next_request = _request_for(state, card)
+        active["request"] = next_request
+        lines.append(
+            "%s没有立刻离开，又换了下一杯的想法：%s"
+            % (card["name"], next_request["text"])
+        )
+        lines.append("可用 recommend %s 重新推荐，也可以 next 结束这桌。" % guest_id)
+    else:
+        active["closed"] = True
+        lines.append("%s今晚暂时不再加酒。" % card["name"])
     return "\n".join(lines)
 
 
@@ -1133,6 +2057,9 @@ def _status_data(state: Dict[str, Any]) -> Dict[str, Any]:
         "visit": state["visit"],
         "turn": state["turn"],
         "inventory": len(state["inventory"]),
+        "house_recipes": len(state.get("house_recipes", {})),
+        "decorations": len(state.get("decorations", {})),
+        "vendor": state.get("vendor", {}).get("name") if state.get("vendor") else None,
         "guests": [g["id"] for g in state["active_guests"]],
         "drunk": round(_intox(state), 1),
         "level": _drunk_level(_intox(state)),
@@ -1281,20 +2208,25 @@ def conversation_turn() -> str:
 
 
 def _help() -> str:
-    return """《万象酒馆》内部指令（用户只需自然说话，由 AI 代为调用）
+    return """《空杯俱乐部》内部指令（用户只需自然说话，由 AI 代为调用）
 setup "酒吧名" 喜欢标签 [讨厌标签]  建立老板口味
-market / buy <货号> [数量]           查看供应商 / 进货
+shop / buy <货号> [数量]             常驻商店 / 进货
+vendor                               查看当前随机游商
 open / next / leave                  开门 / 推进一步 / 离店
 drinks                               查看当前可出的酒
+invent <基酒类别> <风味> ["名字"]    创作并永久保存原创调酒
 price <酒ID> <售价>                  自主定价
 serve <客人ID> <酒ID>                给客人一杯
 cheers <客人ID> <酒ID>               与客人共同喝
+recommend <客人ID>                   按新要求推荐不同酒款
 talk <客人ID> [话题]                  与当前客人交谈并写入关系记忆
 drink <酒ID>                         老板自己喝
 cheers_user <酒ID> [用户喜欢标签]     邀请用户共同喝
 water / eat                          喝水 / 吃东西
 status / guests / memory             状态 / 顾客 / 经历
-report / upgrades / upgrade <id>     经营简报 / 升级列表 / 购买升级
+ledger / report                      资金流水 / 经营简报
+upgrades / upgrade <id>              商店升级列表 / 购买升级
+decor / decorate <id>                商店装饰列表 / 购买装饰
 archive                              输出严格酒吧档案
 
 默认由 AI 自主经营并只向用户转达少量亮点。
@@ -1319,7 +2251,7 @@ def _cmd_setup(state: Dict[str, Any], args: List[str]) -> str:
     state["phase"] = "stocking"
     return (
         "酒吧【%s】建立。老板偏爱%s，回避%s；初始气质为“%s”。\n"
-        "现有启动资金%d点。先用 market 看基础酒，再亲自决定备货。"
+        "现有启动资金%d点。先用 shop 看常驻商店，再亲自决定备货。"
         % (
             state["bar_name"],
             _tag_text(likes),
@@ -1332,10 +2264,15 @@ def _cmd_setup(state: Dict[str, Any], args: List[str]) -> str:
 
 def _cmd_market(state: Dict[str, Any], args: List[str]) -> str:
     del args
-    lines = ["【供应商第%d期】（buy <货号>）" % state["market_no"]]
+    lines = [
+        "【常驻酒类商店】（buy <货号> [数量]）",
+        "资金：%d点｜基础酒长期供应，少量限定酒会在每次经营后刷新。" % state["cash"],
+    ]
     for offer in state["market"]:
+        if int(offer.get("stock", 99)) <= 0:
+            continue
         lines.append(
-            "%s　%s｜%s·%s｜%d点/%d杯｜%s"
+            "%s　%s｜%s·%s｜%d点/%d杯｜库存%s｜%s"
             % (
                 offer["offer_id"],
                 offer["name"],
@@ -1343,6 +2280,36 @@ def _cmd_market(state: Dict[str, Any], args: List[str]) -> str:
                 offer["edition"],
                 offer["cost"],
                 offer["servings"],
+                ("充足" if int(offer.get("stock", 99)) >= 99 else offer["stock"]),
+                _tag_text(offer["tags"]),
+            )
+        )
+    lines.append("商店还可购买 upgrades 酒馆升级与 decor 装饰。")
+    return "\n".join(lines)
+
+
+def _cmd_vendor(state: Dict[str, Any], args: List[str]) -> str:
+    del args
+    vendor = state.get("vendor")
+    if not vendor:
+        return "现在没有游商停在酒馆附近。游商会在营业场景中随机出现。"
+    lines = [
+        "【随机游商｜%s】" % vendor["name"],
+        vendor["intro"],
+        "资金：%d点｜这批货只停留到下一次场景推进。" % state["cash"],
+    ]
+    for offer in vendor["offers"]:
+        if int(offer.get("stock", 0)) <= 0:
+            continue
+        lines.append(
+            "%s　%s｜%s·%s｜游商价%d点（常规约%d点）｜%s"
+            % (
+                offer["offer_id"],
+                offer["name"],
+                offer["rarity"],
+                offer["edition"],
+                offer["cost"],
+                offer.get("original_cost", offer["cost"]),
                 _tag_text(offer["tags"]),
             )
         )
@@ -1352,22 +2319,45 @@ def _cmd_market(state: Dict[str, Any], args: List[str]) -> str:
 def _cmd_buy(state: Dict[str, Any], args: List[str]) -> str:
     if not args:
         return "用法：buy <货号> [数量]"
-    offer = next((item for item in state["market"] if item["offer_id"] == args[0]), None)
+    shop_offer = next(
+        (item for item in state["market"] if item["offer_id"] == args[0]), None
+    )
+    vendor = state.get("vendor")
+    vendor_offer = (
+        next(
+            (item for item in vendor["offers"] if item["offer_id"] == args[0]),
+            None,
+        )
+        if vendor
+        else None
+    )
+    offer = shop_offer or vendor_offer
     if not offer:
-        return "当前供应商没有这个货号。"
+        return "常驻商店和当前游商都没有这个货号。"
     try:
         count = int(args[1]) if len(args) > 1 else 1
     except ValueError:
         return "数量必须是整数。"
     if count < 1 or count > 5:
         return "一次可购买1～5瓶。"
+    if int(offer.get("stock", 99)) < count:
+        return "这批货只剩%d瓶。" % int(offer.get("stock", 0))
     total = offer["cost"] * count
     if state["cash"] < total:
         return "资金不足：需要%d点，现有%d点。" % (total, state["cash"])
     cellar_limit = 10 + state["upgrades"].get("cellar", 0) * 4
     if offer["id"] not in state["inventory"] and len(state["inventory"]) >= cellar_limit:
         return "酒窖已满（%d种）。先升级 cellar，或消耗现有库存。" % cellar_limit
-    state["cash"] -= total
+    seller = offer.get("seller", "旧供应单")
+    before = state["cash"]
+    _cash_change(
+        state,
+        -total,
+        "向%s购入%s×%d" % (seller, offer["name"], count),
+        "spend",
+    )
+    if int(offer.get("stock", 99)) < 99:
+        offer["stock"] -= count
     item = state["inventory"].get(offer["id"])
     if not item:
         item = dict(offer)
@@ -1381,12 +2371,13 @@ def _cmd_buy(state: Dict[str, Any], args: List[str]) -> str:
     item["history"].append(
         {"visit": state["visit"], "event": "购入%d瓶" % count}
     )
-    state["session"]["spend"] += total
-    state["session"]["bought"].append("%s×%d" % (offer["name"], count))
-    return "购入%s×%d，花%d点。现有资金%d点，库存%d杯。" % (
+    state["session"]["bought"].append("%s：%s×%d" % (seller, offer["name"], count))
+    return "从%s购入%s×%d，花%d点。资金%d→%d点，库存%d杯。" % (
+        seller,
         offer["name"],
         count,
         total,
+        before,
         state["cash"],
         item["remaining"],
     )
@@ -1427,7 +2418,11 @@ def _cmd_next(state: Dict[str, Any], args: List[str]) -> str:
 
 def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
     del args
-    lines = ["【当前可出酒单】"]
+    lines = [
+        "【当前可出酒单】",
+        "经典款%d种｜酒馆原创%d种（invent <基酒类别> <风味标签> [名字]）"
+        % (len(RECIPES), len(state.get("house_recipes", {}))),
+    ]
     for product_id, item in state["inventory"].items():
         if item["remaining"] <= 0:
             continue
@@ -1442,7 +2437,7 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
                 _tag_text(profile["tags"]),
             )
         )
-    for recipe_id in RECIPES:
+    for recipe_id in _all_recipes(state):
         profile = _drink_profile(state, recipe_id)
         if profile:
             lines.append(
@@ -1455,6 +2450,57 @@ def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
                 )
             )
     return "\n".join(lines)
+
+
+def _cmd_invent(state: Dict[str, Any], args: List[str]) -> str:
+    if len(args) < 2:
+        return '用法：invent <基酒类别> <2～4个风味标签，用逗号分隔> ["原创酒名"]'
+    kind = args[0].lower()
+    available = [
+        item
+        for item in state["inventory"].values()
+        if item["kind"] == kind and int(item["remaining"]) > 0
+    ]
+    if not available:
+        return "酒库里没有可用的%s类基酒。" % kind
+    tags = list(dict.fromkeys(tag for tag in args[1].split(",") if tag))
+    if len(tags) < 2 or len(tags) > 4 or not set(tags).issubset(TAGS):
+        return "原创调酒需要2～4个有效风味标签。用 help 查看标签。"
+    if len(args) >= 3:
+        name = " ".join(args[2:]).strip()
+    else:
+        prefixes = ["失重", "霓虹", "凌晨三点", "无信号", "逆光", "蓝色噪点", "最后一班"]
+        suffixes = ["回声", "出口", "心跳", "来电", "侧影", "潮汐", "余温"]
+        name = _choice(state, prefixes) + _choice(state, suffixes)
+    if not name or len(name) > 40:
+        return "原创酒名应为1～40个字符。"
+    if any(recipe["name"] == name for recipe in _all_recipes(state).values()):
+        return "酒单里已经有一杯叫%s。" % name
+    state["recipe_no"] = int(state.get("recipe_no", 0)) + 1
+    recipe_id = "house:%03d" % state["recipe_no"]
+    source = sorted(available, key=lambda item: (item["cost"], -item["remaining"]))[0]
+    factor = 0.78
+    if "rich" in tags or "smoky" in tags:
+        factor += 0.12
+    if "crisp" in tags or "dry" in tags:
+        factor -= 0.05
+    factor = round(_clamp(factor, 0.65, 1.08), 2)
+    ingredient_cost = source["cost"] / max(1, source["servings"])
+    price = max(20, int(math.ceil(ingredient_cost * 3.0 + len(tags) * 2)))
+    state["house_recipes"][recipe_id] = {
+        "name": name,
+        "kind": kind,
+        "tags": tags,
+        "price": price,
+        "unit_factor": factor,
+        "created_visit": state["visit"],
+    }
+    state["session"]["highlights"].append("创作原创调酒《%s》" % name)
+    return (
+        "🍸 新原创调酒已写入酒单：%s　%s｜基酒%s｜默认售价%d点｜%s。\n"
+        "以后可直接用 %s 招待、共饮或独饮。"
+        % (recipe_id, name, source["name"], price, _tag_text(tags), recipe_id)
+    )
 
 
 def _cmd_price(state: Dict[str, Any], args: List[str]) -> str:
@@ -1479,6 +2525,60 @@ def _cmd_serve(state: Dict[str, Any], args: List[str], joins: bool = False) -> s
     if len(args) != 2:
         return "用法：%s <客人ID> <酒ID>" % ("cheers" if joins else "serve")
     return _serve_guest(state, args[0], args[1], joins)
+
+
+def _cmd_recommend(state: Dict[str, Any], args: List[str]) -> str:
+    if not args:
+        return "用法：recommend <客人ID>"
+    guest_id = args[0]
+    active = next(
+        (guest for guest in state["active_guests"] if guest["id"] == guest_id),
+        None,
+    )
+    if not active:
+        return "这位客人现在不在店里。"
+    card = state["records"][guest_id]["card"]
+    used = set(active.get("drinks", []))
+    candidate_ids = [
+        "pour:" + product_id
+        for product_id, item in state["inventory"].items()
+        if int(item["remaining"]) > 0
+    ] + list(_all_recipes(state))
+    ranked = []
+    for drink_id in candidate_ids:
+        if drink_id in used:
+            continue
+        profile = _drink_profile(state, drink_id)
+        if not profile:
+            continue
+        tags = set(profile["tags"])
+        price = _price(state, profile)
+        score = 50
+        score += 10 * len(tags & set(card["likes"]))
+        score -= 14 * len(tags & set(card["dislikes"]))
+        score += 13 * len(tags & set(active["request"]["tags"]))
+        remaining_budget = max(0, int(card["budget"]) - int(active.get("spent", 0)))
+        if price > remaining_budget:
+            score -= min(30, price - remaining_budget)
+        ranked.append((score, drink_id, profile, price))
+    if not ranked:
+        return "现有库存里找不到一杯不同的酒可推荐。"
+    ranked.sort(key=lambda item: (-item[0], item[3], item[1]))
+    lines = [
+        "【给%s的不同酒款推荐】" % card["name"],
+        "当前要求：%s｜已喝%d杯｜已消费%d点"
+        % (
+            active["request"]["text"],
+            int(active.get("served_count", 0)),
+            int(active.get("spent", 0)),
+        ),
+    ]
+    for score, drink_id, profile, price in ranked[:5]:
+        lines.append(
+            "%s　%s｜%d点｜匹配度%d｜%s"
+            % (drink_id, profile["name"], price, score, _tag_text(profile["tags"]))
+        )
+    return "\n".join(lines)
 
 
 def _cmd_drink(state: Dict[str, Any], args: List[str]) -> str:
@@ -1538,6 +2638,7 @@ def _cmd_decline(state: Dict[str, Any], args: List[str]) -> str:
     if not active:
         return "这位客人不在店里。"
     active["served"] = True
+    active["closed"] = True
     card = state["records"][args[0]]["card"]
     state["records"][args[0]]["trust"] -= 1
     return "%s没有喝到酒，记下了这次拒绝，随后退到门外。" % card["name"]
@@ -1589,7 +2690,8 @@ def _cmd_eat(state: Dict[str, Any], args: List[str]) -> str:
     del args
     if state["cash"] < 12:
         return "店里现有资金不够准备热食。"
-    state["cash"] -= 12
+    before_cash = state["cash"]
+    _cash_change(state, -12, "准备一份热食", "spend")
     kitchen = state["upgrades"].get("kitchen", 0)
     state["body"]["stomach"] = round(
         _clamp(state["body"]["stomach"] + 30 + kitchen * 8), 2
@@ -1598,7 +2700,11 @@ def _cmd_eat(state: Dict[str, Any], args: List[str]) -> str:
         _clamp(state["body"]["nausea"] - 6 - kitchen * 3), 2
     )
     trend = _body_tick(state)
-    return "我吃了一份热食，后续吸收会慢一些。\n" + _body_line(state, trend)
+    return "我吃了一份热食，资金%d→%d点；后续吸收会慢一些。\n%s" % (
+        before_cash,
+        state["cash"],
+        _body_line(state, trend),
+    )
 
 
 def _cmd_status(state: Dict[str, Any], args: List[str]) -> str:
@@ -1607,6 +2713,7 @@ def _cmd_status(state: Dict[str, Any], args: List[str]) -> str:
         "【%s】%s｜资金%d点｜第%d次经历\n"
         "老板口味：喜欢%s；回避%s｜气质：%s\n"
         "酒库：%s\n"
+        "原创调酒：%d款｜装饰：%s\n"
         "身体：%s"
         % (
             state["bar_name"] or "未命名酒吧",
@@ -1617,6 +2724,15 @@ def _cmd_status(state: Dict[str, Any], args: List[str]) -> str:
             _tag_text(state["owner_dislikes"]) or "暂无",
             state["vibe"],
             _inventory_summary(state),
+            len(state.get("house_recipes", {})),
+            (
+                "、".join(
+                    DECOR_DEFS[item]["name"]
+                    for item in state.get("decorations", {})
+                    if item in DECOR_DEFS
+                )
+                or "暂无"
+            ),
             _body_line(state),
         )
     )
@@ -1668,6 +2784,72 @@ def _cmd_upgrades(state: Dict[str, Any], args: List[str]) -> str:
     return "\n".join(lines)
 
 
+def _cmd_decor(state: Dict[str, Any], args: List[str]) -> str:
+    del args
+    lines = ["【常驻商店｜酒馆装饰】（decorate <id>）"]
+    owned = state.get("decorations", {})
+    for decor_id, definition in DECOR_DEFS.items():
+        status = (
+            "已拥有"
+            if decor_id in owned
+            else "%d点" % int(definition["cost"])
+        )
+        lines.append(
+            "%s　%s｜%s｜%s"
+            % (decor_id, definition["name"], status, definition["desc"])
+        )
+    lines.append("装饰会轻微影响来客频率与满意度，但永远不会排除任何客人。")
+    lines.append("现有资金：%d点" % state["cash"])
+    return "\n".join(lines)
+
+
+def _cmd_decorate(state: Dict[str, Any], args: List[str]) -> str:
+    if not args or args[0] not in DECOR_DEFS:
+        return "用法：decorate <装饰id>。先用 decor 查看。"
+    decor_id = args[0]
+    if decor_id in state.get("decorations", {}):
+        return "酒馆已经摆放了%s。" % DECOR_DEFS[decor_id]["name"]
+    definition = DECOR_DEFS[decor_id]
+    cost = int(definition["cost"])
+    if state["cash"] < cost:
+        return "资金不足：%s需要%d点，现有%d点。" % (
+            definition["name"],
+            cost,
+            state["cash"],
+        )
+    before = state["cash"]
+    _cash_change(state, -cost, "购买酒馆装饰：%s" % definition["name"], "spend")
+    state.setdefault("decorations", {})[decor_id] = {
+        "bought_visit": state["visit"]
+    }
+    state["session"]["highlights"].append("添置装饰%s" % definition["name"])
+    return "已添置%s。资金%d→%d点。%s" % (
+        definition["name"],
+        before,
+        state["cash"],
+        definition["desc"],
+    )
+
+
+def _cmd_ledger(state: Dict[str, Any], args: List[str]) -> str:
+    del args
+    entries = state.get("ledger", [])
+    if not entries:
+        return "账本还没有记录。当前资金%d点。" % state["cash"]
+    lines = ["【资金流水｜最近12笔】"]
+    for entry in entries[-12:]:
+        lines.append(
+            "第%d次｜%+d点｜余额%d｜%s"
+            % (
+                int(entry.get("visit", 0)),
+                int(entry["amount"]),
+                int(entry["balance"]),
+                entry["reason"],
+            )
+        )
+    return "\n".join(lines)
+
+
 def _cmd_upgrade(state: Dict[str, Any], args: List[str]) -> str:
     if not args or args[0] not in UPGRADE_DEFS:
         return "用法：upgrade <升级id>。先用 upgrades 查看。"
@@ -1683,16 +2865,22 @@ def _cmd_upgrade(state: Dict[str, Any], args: List[str]) -> str:
             cost,
             state["cash"],
         )
-    state["cash"] -= cost
+    before_cash = state["cash"]
+    _cash_change(
+        state,
+        -cost,
+        "购买酒馆升级：%s Lv.%d" % (definition["name"], level + 1),
+        "spend",
+    )
     state["upgrades"][upgrade_id] = level + 1
-    state["session"]["spend"] += cost
     state["session"]["highlights"].append(
         "升级%s到Lv.%d" % (definition["name"], level + 1)
     )
-    return "完成升级：%s Lv.%d，花费%d点。现有资金%d点。" % (
+    return "完成升级：%s Lv.%d，花费%d点。资金%d→%d点。" % (
         definition["name"],
         level + 1,
         cost,
+        before_cash,
         state["cash"],
     )
 
@@ -1736,6 +2924,7 @@ def _cmd_leave(state: Dict[str, Any], args: List[str]) -> str:
     state["memories"] = state["memories"][-30:]
     state["phase"] = "closed"
     state["active_guests"] = []
+    state["vendor"] = None
     state["post_bar"] = _intox(state) >= 3 or state["body"]["pending"] > 0
     state["session"] = _empty_session()
     _refresh_market(state, starter=False)
@@ -1758,8 +2947,10 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _help()
     if name == "setup":
         return _cmd_setup(state, args)
-    if name == "market":
+    if name in ("market", "shop"):
         return _cmd_market(state, args)
+    if name == "vendor":
+        return _cmd_vendor(state, args)
     if name == "buy":
         return _cmd_buy(state, args)
     if name == "open":
@@ -1768,12 +2959,16 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _cmd_next(state, args)
     if name == "drinks":
         return _cmd_drinks(state, args)
+    if name == "invent":
+        return _cmd_invent(state, args)
     if name == "price":
         return _cmd_price(state, args)
     if name == "serve":
         return _cmd_serve(state, args, False)
     if name == "cheers":
         return _cmd_serve(state, args, True)
+    if name == "recommend":
+        return _cmd_recommend(state, args)
     if name == "drink":
         return _cmd_drink(state, args)
     if name == "cheers_user":
@@ -1794,10 +2989,16 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
         return _cmd_memory(state, args)
     if name == "report":
         return _cmd_report(state, args)
+    if name == "ledger":
+        return _cmd_ledger(state, args)
     if name == "upgrades":
         return _cmd_upgrades(state, args)
     if name == "upgrade":
         return _cmd_upgrade(state, args)
+    if name == "decor":
+        return _cmd_decor(state, args)
+    if name == "decorate":
+        return _cmd_decorate(state, args)
     if name == "leave":
         return _cmd_leave(state, args)
     return "不认识指令 %r。用 help 查看。" % parts[0]
@@ -1847,7 +3048,7 @@ def new_game(seed: Optional[int] = None) -> str:
     except Exception as exc:
         return "⚠️ 无法建立新游戏：%s" % exc
     return (
-        "《万象酒馆》已建立空白档案（种子%d）。\n"
+        "《空杯俱乐部》已建立空白档案（种子%d）。\n"
         "第一步由AI自己决定酒吧名与口味："
         'setup "酒吧名" 喜欢标签 [讨厌标签]。' % seed_value
     )
