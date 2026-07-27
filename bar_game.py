@@ -5,6 +5,7 @@
     cmd("指令")
     write_archive()
     restore_archive(archive_text)
+    viewer_link()  # 生成当前酒馆的只读观察链接
     conversation_turn(user_message)  # 离店后每次回复用户前强制调用
     register_guest(card) # 给私人世界包增加候选来客
 
@@ -30,6 +31,7 @@ MASK32 = 0xFFFFFFFF
 SAVE_PATH = Path(__file__).with_name("bar_save.json")
 ARCHIVE_BEGIN = "【AI酒吧档案｜V1】"
 ARCHIVE_END = "【档案结束】"
+VIEWER_BASE_URL = "https://empty-glass-club-viewer.dan521627.chatgpt.site"
 WHOLESALE_COST_SCALE = 2.0
 
 KIND_ABV = {
@@ -2279,13 +2281,50 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
         "attempts": 0,
         "clue_stage": 0,
     }
+    record = state.get("records", {}).get(card["id"], {})
+    returning = int(record.get("visits", 0)) > 1
     seasonal_tags = SEASONS.get(state.get("season", "spring"), SEASONS["spring"])["tags"]
     liked = list(card["likes"])
     seasonal_likes = [tag for tag in liked if tag in seasonal_tags]
     primary = _choice(state, seasonal_likes or liked)
     secondary = next((tag for tag in liked if tag != primary), primary)
     target = [primary, secondary] if _rand(state) < 0.36 else [primary]
-    if _rand(state) < 0.24:
+    intent_roll = _rand(state)
+    custom_chance = 0.09 if returning else 0.02
+    discovery_chance = 0.16 if returning else 0.08
+    if intent_roll < custom_chance:
+        return {
+            **common,
+            "ordering_mode": "custom",
+            "service_intent": "new_creation",
+            "tags": list(target),
+            "target_tags": list(target),
+            "text": (
+                "“今天状态不太对，不想重复上次喝过的。用%s做一杯店里还没有的新酒；"
+                "不用一遍遍猜，最多两轮把方向调准。”"
+                if returning
+                else "“我偶尔会用一杯新酒认识一家店。以%s为方向，给我做一杯你的原创；"
+                "最多调整两轮。”"
+            )
+            % _tag_text(target),
+            "revealed": True,
+        }
+    if intent_roll < discovery_chance:
+        return {
+            **common,
+            "ordering_mode": "uncertain",
+            "service_intent": "recommendation",
+            "tags": [primary],
+            "target_tags": list(target),
+            "text": (
+                "“我今天想换换口味。先按%s给我两三个现有选择，我听完就点。”"
+                if returning
+                else "“我还没决定。按%s给我两三个现有选择，不必为了我临时发明一杯。”"
+            )
+            % TAGS[primary],
+            "revealed": True,
+        }
+    if intent_roll < (0.76 if returning else 0.74):
         direct = _direct_order_candidate(state, card, budget_multiplier)
         if direct:
             direct_tags = [
@@ -2294,6 +2333,7 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
             return {
                 **common,
                 "ordering_mode": "direct",
+                "service_intent": "direct_order",
                 "direct_drink_id": direct["id"],
                 "tags": direct_tags,
                 "target_tags": direct_tags,
@@ -2346,6 +2386,7 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
         return {
             **common,
             "ordering_mode": "uncertain",
+            "service_intent": "recommendation",
             "tags": [primary],
             "target_tags": list(target),
             "text": "“我还没决定喝哪一杯。先按%s给我两三个方向，我听完再选。”"
@@ -2404,28 +2445,121 @@ _INTERACTION_KINDS = {
         "name": "价值争论",
         "topics": ["自由是否必须承担后果", "好意能否越过他人的选择", "规则失效后谁来定义正义"],
         "delta": (6, 18),
+        "triggers": [
+            "{first}评价了吧台上一段旧新闻，{second}认为那句话正在替当事人决定什么才算正确。",
+            "{second}把自己的某次选择称为必要代价，{first}当场指出“必要”经常只是胜利者的说法。",
+            "两人同时听见邻桌谈论“正确的牺牲”，却给出了完全相反的判断。",
+        ],
+        "escalations": [
+            "任何一方把另一方过去的牺牲说成怯懦、愚蠢或自我感动。",
+            "争论从原则转向审判对方本人，尤其是否认其曾经保护过的人。",
+        ],
+        "mediation": [
+            "先区分双方争的是原则、手段还是后果，不要用“你们都有道理”糊弄。",
+            "请双方各说一个自己原则不适用的例外，再寻找共同底线。",
+        ],
     },
     "recognition": {
         "name": "跨世界共鸣",
         "topics": ["故乡已经消失以后如何继续生活", "被别人当成符号是什么感觉", "漫长旅途中真正留下的人"],
         "delta": (-10, 8),
+        "triggers": [
+            "{first}无意间说出一种只有失去故乡的人才会使用的比喻，{second}停下了手里的杯子。",
+            "店里的气味让{second}想起已经回不去的地方，{first}认出了那种突然沉默。",
+        ],
+        "escalations": [
+            "一方把另一方的怀念误解为拒绝向前走。",
+            "旁人把他们的经历浪漫化成英雄故事。",
+        ],
+        "mediation": [
+            "不用急着解决悲伤，只确认两段失去有哪些相似、又有哪些不能互相代替。",
+            "让双方谈一件离开故乡后仍在坚持的小事。",
+        ],
     },
     "rivalry": {
         "name": "危险试探",
         "topics": ["彼此的能力与底线", "谁更擅长识破谎言", "一段来历不明的旧账"],
         "delta": (10, 22),
+        "triggers": [
+            "{first}认出{second}随身物件上的标记与自己世界的一桩旧案相似，当面要求解释。",
+            "{second}指出{first}刚才讲述里有一处矛盾，{first}把这视为公开挑衅。",
+            "两人同时伸手去拿游商留下的同一件东西，谁都没有先松手。",
+        ],
+        "escalations": [
+            "有人碰对方的武器、随身物或不能被外人触碰的纪念品。",
+            "有人声称已经看穿对方，却把猜测说成事实。",
+        ],
+        "mediation": [
+            "先让双方把事实、推测和威胁分开说，阻止用能力展示代替证据。",
+            "给争议物件设一个暂存位置，要求两边各自说明所有权或风险依据。",
+        ],
     },
     "story_exchange": {
         "name": "交换故事",
         "topics": ["第一次离开故乡的夜晚", "至今仍没有原谅的人", "做过却不愿被称作英雄的事"],
         "delta": (-8, 9),
+        "triggers": [
+            "{second}听见{first}拒绝“英雄”这个称呼，追问那次选择真正付出了什么。",
+            "{first}说起第一次离开故乡的天气，{second}发现那与自己的经历惊人相似。",
+        ],
+        "escalations": [
+            "一方擅自替另一方总结人生意义。",
+            "故事被当成比较谁更痛苦的筹码。",
+        ],
+        "mediation": [
+            "让双方只追问细节，不替对方下结论。",
+            "提醒他们相似经历不等于相同答案。",
+        ],
     },
     "misunderstanding": {
         "name": "误会升级",
         "topics": ["一句在两个世界含义相反的话", "被错认的身份与立场", "某件装饰引出的历史误读"],
         "delta": (8, 20),
+        "triggers": [
+            "{first}使用了一句在自己世界表示尊重的话，{second}却把它听成投降前的讥讽。",
+            "{second}把店里一件装饰认成敌对阵营的标记，{first}的解释又像是在故意包庇。",
+            "{first}按自己故乡的礼节移动了杯子，那个动作在{second}的世界等同于发起挑战。",
+        ],
+        "escalations": [
+            "有人坚持自己的文化解释才是唯一解释。",
+            "有人要求对方为并不知道的禁忌立刻道歉。",
+        ],
+        "mediation": [
+            "先复述动作或原话在两个世界各自是什么意思，再讨论有没有恶意。",
+            "允许受到冒犯的人保留感受，同时把故意侮辱和文化误读分开。",
+        ],
     },
 }
+
+
+def _build_interaction_case(
+    state: Dict[str, Any],
+    kind: str,
+    topic: str,
+    first: Dict[str, Any],
+    second: Dict[str, Any],
+) -> Dict[str, Any]:
+    definition = _INTERACTION_KINDS[kind]
+    values = {
+        "first": first["name"],
+        "second": second["name"],
+        "first_origin": first["origin"],
+        "second_origin": second["origin"],
+    }
+    trigger = _choice(state, definition["triggers"]).format(**values)
+    return {
+        "trigger": trigger,
+        "position_a": "%s认为“%s”必须先守住%s；其担心%s的做法会让代价被轻描淡写。"
+        % (first["name"], topic, first["ethos"], second["name"]),
+        "position_b": "%s认为“%s”必须同时考虑%s；其反感%s替自己定义动机。"
+        % (second["name"], topic, second["ethos"], first["name"]),
+        "hidden_need_a": "%s表面在争原则，实际想证明自己过去的一次选择并非毫无意义。"
+        % first["name"],
+        "hidden_need_b": "%s真正需要的是保留解释自己经历的权利，而不是被迫认输。"
+        % second["name"],
+        "escalation": _choice(state, definition["escalations"]),
+        "mediation": list(definition["mediation"]),
+    }
 
 
 def _interaction_cards(
@@ -2440,6 +2574,16 @@ def _interaction_directive(state: Dict[str, Any], prefix: str = "") -> str:
     if not interaction:
         return "当前没有两位来客正在互动。"
     first, second = _interaction_cards(state, interaction)
+    if not interaction.get("trigger"):
+        interaction.update(
+            _build_interaction_case(
+                state,
+                interaction["kind"],
+                interaction["topic"],
+                first,
+                second,
+            )
+        )
     stage = (
         "即将失控"
         if interaction["tension"] >= 80
@@ -2452,9 +2596,16 @@ def _interaction_directive(state: Dict[str, Any], prefix: str = "") -> str:
     return (
         "%s【AI内部双人演绎卡｜不得原样展示给用户】\n"
         "互动：%s｜话题：%s｜第%d轮｜张力%d/100（%s）\n"
+        "具体导火索：%s\n"
         "角色A：%s｜%s｜立场%s\n角色B：%s｜%s｜立场%s\n"
+        "A当前主张：%s\nB当前主张：%s\n"
+        "A未说出口的需要：%s\nB未说出口的需要：%s\n"
+        "最容易升级的点：%s\n"
+        "老板可用的调停抓手：%s\n"
         "必须生成两人真正互相听见后的连续动作与对话：后一人的话要回应前一人的具体内容，"
         "不能各说一段独白。允许打断、沉默、讽刺、理解、道歉或拒绝；严格遵守各自史实或原作。"
+        "先把具体导火索自然演出来，不能只报告“他们发生争执”。"
+        "不要把未说出口的需要直接念成台词，要通过反应和措辞表现。"
         "不要替老板决定是否介入。结尾留下一个自然可干预的现场，而不是菜单式提问。"
         % (
             prefix,
@@ -2463,12 +2614,19 @@ def _interaction_directive(state: Dict[str, Any], prefix: str = "") -> str:
             interaction["turns"],
             interaction["tension"],
             stage,
+            interaction["trigger"],
             first["name"],
             first["temperament"],
             first["ethos"],
             second["name"],
             second["temperament"],
             second["ethos"],
+            interaction["position_a"],
+            interaction["position_b"],
+            interaction["hidden_need_a"],
+            interaction["hidden_need_b"],
+            interaction["escalation"],
+            "；".join(interaction["mediation"]),
         )
     )
 
@@ -2483,11 +2641,14 @@ def _start_interaction(
         kind = _choice(state, ["recognition", "story_exchange", "debate"])
         tension = 18 + int(_rand(state) * 24)
     definition = _INTERACTION_KINDS[kind]
+    topic = _choice(state, definition["topics"])
+    case = _build_interaction_case(state, kind, topic, first, second)
     state["interaction"] = {
         "participants": [first["id"], second["id"]],
         "kind": kind,
         "kind_name": definition["name"],
-        "topic": _choice(state, definition["topics"]),
+        "topic": topic,
+        **case,
         "tension": tension,
         "turns": 0,
         "resolved": False,
@@ -2572,9 +2733,13 @@ def _cmd_intervene(state: Dict[str, Any], args: List[str]) -> str:
             ("：“" + words + "”") if words else ""
         )
     elif action == "mediate":
-        interaction["tension"] = int(_clamp(interaction["tension"] - 20))
-        prefix = "老板尝试调停%s。调停可以被接受，也可以被角色有理由地拒绝。\n" % (
-            ("：“" + words + "”") if words else ""
+        reduction = 20 if words else 10
+        interaction["tension"] = int(_clamp(interaction["tension"] - reduction))
+        prefix = (
+            "老板尝试调停%s。AI必须把老板的话与双方主张、隐藏需要和升级点逐项对照："
+            "说中了关键处可以被接受，只说“别吵了”或偏袒一方则只能短暂降温，"
+            "角色也可以有理由地拒绝。\n"
+            % (("：“" + words + "”") if words else "")
         )
     elif action == "story":
         interaction["tension"] = int(_clamp(interaction["tension"] - 13))
@@ -4240,6 +4405,118 @@ def _archive_from_state(state: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _viewer_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
+    """生成只够观察窗展示的精简状态；不包含可恢复的完整私人存档。"""
+    cards = {card["id"]: card for card in _all_guest_cards(state)}
+    guests = []
+    for active in state.get("active_guests", [])[:4]:
+        card = cards.get(active["id"]) or state.get("records", {}).get(
+            active["id"], {}
+        ).get("card")
+        if not card:
+            continue
+        drinks = []
+        for drink_id in active.get("drinks", [])[-2:]:
+            profile = _drink_profile(state, drink_id)
+            if profile:
+                drinks.append(profile["name"])
+        guests.append(
+            {
+                "name": card["name"],
+                "origin": card["origin"],
+                "visits": int(
+                    state.get("records", {}).get(active["id"], {}).get("visits", 1)
+                ),
+                "served": bool(active.get("served")),
+                "drinks": drinks,
+                "request": str(active.get("request", {}).get("text", ""))[:180],
+                "intox": round(float(active.get("npc_drunk", 0.0)), 1),
+            }
+        )
+    stock = sorted(
+        (
+            {
+                "name": item.get("name", product_id),
+                "remaining": int(item.get("remaining", 0)),
+                "edition": item.get("edition", ""),
+            }
+            for product_id, item in state.get("inventory", {}).items()
+            if int(item.get("remaining", 0)) > 0
+        ),
+        key=lambda item: (-item["remaining"], item["name"]),
+    )[:12]
+    decor = []
+    for decor_id in list(state.get("decorations", {}))[:8]:
+        definition = _decor_definition(state, decor_id)
+        if definition:
+            decor.append(definition["name"])
+    interaction = state.get("interaction")
+    interaction_view = None
+    if interaction and not interaction.get("resolved"):
+        first, second = _interaction_cards(state, interaction)
+        interaction_view = {
+            "kind": interaction.get("kind_name"),
+            "participants": [first["name"], second["name"]],
+            "topic": interaction.get("topic"),
+            "trigger": interaction.get("trigger"),
+            "tension": int(interaction.get("tension", 0)),
+        }
+    season_id = state.get("season", "spring")
+    session = state.get("session", {})
+    return {
+        "v": 1,
+        "bar": state.get("bar_name") or "未命名酒馆",
+        "bar_id": state.get("bar_id"),
+        "visit": int(state.get("visit", 0)),
+        "phase": state.get("phase"),
+        "cash": int(state.get("cash", 0)),
+        "reputation": int(state.get("reputation", 0)),
+        "season": SEASONS.get(season_id, SEASONS["spring"])["name"],
+        "opening": state.get("opening_time") or "尚未开门",
+        "weather": session.get("weather") or "天气未记录",
+        "owner_intox": round(_intox(state), 1),
+        "owner_level": _drunk_level(_intox(state)),
+        "inventory": stock,
+        "inventory_count": len(
+            [
+                item
+                for item in state.get("inventory", {}).values()
+                if int(item.get("remaining", 0)) > 0
+            ]
+        ),
+        "guest_count": len(state.get("records", {})),
+        "guests": guests,
+        "memories": [str(item)[:260] for item in state.get("memories", [])[-5:]],
+        "highlights": [
+            str(item)[:220] for item in session.get("highlights", [])[-5:]
+        ],
+        "decor": decor,
+        "interaction": interaction_view,
+        "updated_turn": int(state.get("turn", 0)),
+    }
+
+
+def _viewer_link_from_state(state: Dict[str, Any]) -> str:
+    raw = json.dumps(
+        _viewer_snapshot(state), ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    payload = base64.urlsafe_b64encode(zlib.compress(raw, 9)).decode("ascii")
+    return VIEWER_BASE_URL + "/#bar=" + payload.rstrip("=")
+
+
+def viewer_link() -> str:
+    """生成当前酒馆的只读观察链接，可直接发给用户点击。"""
+    try:
+        state = _load()
+        return (
+            "🔭 这是这家酒馆此刻的只读观察窗：\n%s\n"
+            "链接只携带精简展示状态，不含可恢复的完整存档；经营变化后请重新生成。"
+            % _viewer_link_from_state(state)
+        )
+    except Exception as exc:
+        return "⚠️ 无法生成酒馆观察链接：%s" % exc
+
+
 def write_archive() -> str:
     """输出固定格式档案，供 AI 原样写入长期记忆。"""
     try:
@@ -4475,9 +4752,11 @@ upgrades / upgrade <id>              商店升级列表 / 购买升级
 decor / decorate <id>                软硬装商店 / 用酒吧资金购买
 source_decor "名字" 分类 "来源" ...   自由寻找现实或任意世界的装修物品
 archive                              输出严格酒吧档案
+view                                 生成当前酒馆的只读网页观察链接
 
 默认由 AI 自主经营并只向用户转达少量亮点。
 只有用户主动表示参与时，才暂停让用户选择或使用 cheers_user。
+当用户想看看酒馆时，调用 view 并把返回链接自然地转达给用户；经营变化后重新生成。
 
 风味标签：%s""" % " ".join("%s=%s" % item for item in TAGS.items())
 
@@ -5964,6 +6243,8 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
     name, args = parts[0].lower(), parts[1:]
     if name in ("help", "?"):
         return _help()
+    if name in ("view", "viewer"):
+        return _viewer_link_from_state(state)
     if name == "setup":
         return _cmd_setup(state, args)
     if name == "design":
@@ -6061,6 +6342,12 @@ def cmd(command: str) -> str:
         state = _load()
         if len(segments) == 1 and segments[0].lower() == "archive":
             return _archive_from_state(state)
+        if len(segments) == 1 and segments[0].lower() in ("view", "viewer"):
+            return (
+                "🔭 这是这家酒馆此刻的只读观察窗：\n%s\n"
+                "经营变化后重新调用 view，就会得到一张更新后的观察链接。"
+                % _viewer_link_from_state(state)
+            )
         outputs = []
         for segment in segments:
             result = _run_one(state, segment)
