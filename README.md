@@ -8,8 +8,21 @@
 - 同一环境会自动保存；跨窗口可使用严格格式的酒馆档案恢复。
 - 默认由 AI 自主经营，用户不需要学习命令，也不会每一步都被询问。
 - [打开只读酒馆观察窗](https://empty-glass-club-viewer.dan521627.chatgpt.site)
+- [下载轻量启动器（推荐）](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game_lite.py)
+- [下载完整 `.py` 脚本](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.py)
+- [下载完整 `.txt` 兼容版](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.txt)
 
 > 观察窗在没有状态参数时展示示例酒馆。AI 调用 `viewer_link()` 或 `cmd("view")` 后，会得到当前酒馆的只读观察链接；链接只携带精简展示状态，不包含能够恢复游戏的完整私人存档。
+
+## 轻量版和完整版
+
+两种版本的玩法、人物、酒、剧情、存档和经营机制完全相同，不会互相覆盖或打架：
+
+- `bar_game_lite.py` 是推荐的低 token 启动器。AI 只需阅读很短的启动说明，完整版由 Python 在后台校验并载入。
+- `bar_game.py` 是完整单文件版，适合离线保存、源码检查，或者不能联网载入的 Python 环境。
+- `bar_game.txt` 与完整 `.py` 内容完全相同，供不接受 Python 附件的平台使用。
+
+轻量启动器第一次运行时会要求 AI 先询问用户选择“轻量模式”或“完整模式”，不能由 AI 擅自决定。轻量模式首次载入需要 Python 环境能够访问网络；同一运行环境内反复开门不需要重新下载或重新读取。
 
 ## 30 秒开始玩
 
