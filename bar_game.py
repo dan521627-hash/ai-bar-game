@@ -2209,6 +2209,36 @@ def _story_taste_clue(card: Dict[str, Any], target: Sequence[str], clarity: int)
     )
 
 
+def _direct_order_candidate(
+    state: Dict[str, Any], card: Dict[str, Any], budget_multiplier: float
+) -> Optional[Dict[str, Any]]:
+    candidate_ids = [
+        "pour:" + product_id
+        for product_id, item in state.get("inventory", {}).items()
+        if int(item.get("remaining", 0)) > 0
+    ] + list(_all_recipes(state))
+    ranked = []
+    limit = int(int(card["budget"]) * budget_multiplier * 1.15)
+    for drink_id in candidate_ids:
+        profile = _drink_profile(state, drink_id)
+        if not profile:
+            continue
+        price = _price(state, profile)
+        if price > limit:
+            continue
+        tags = set(profile["tags"])
+        match = len(tags & set(card["likes"]))
+        mismatch = len(tags & set(card["dislikes"]))
+        if mismatch:
+            continue
+        ranked.append((match, -abs(price - limit * 0.65), drink_id, profile))
+    if not ranked:
+        return None
+    ranked.sort(key=lambda item: (-item[0], -item[1], item[2]))
+    best = ranked[: min(4, len(ranked))]
+    return _choice(state, best)[3]
+
+
 def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
     spending_roll = _rand(state)
     if spending_roll < 0.10 and (
@@ -2229,10 +2259,23 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
         spending_style = "regular"
         budget_multiplier = 1.15
         tier_preference = "standard"
+    behavior_roll = _rand(state)
+    if behavior_roll < 0.46:
+        price_behavior = "easygoing"
+    elif behavior_roll < 0.68:
+        price_behavior = "deliberate"
+    elif behavior_roll < 0.84:
+        price_behavior = "bargainer"
+    elif behavior_roll < 0.94:
+        price_behavior = "decisive"
+    else:
+        price_behavior = "walkout_sensitive"
     common = {
         "spending_style": spending_style,
         "budget_multiplier": budget_multiplier,
         "tier_preference": tier_preference,
+        "price_behavior": price_behavior,
+        "ordering_mode": "preference",
         "attempts": 0,
         "clue_stage": 0,
     }
@@ -2242,6 +2285,22 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
     primary = _choice(state, seasonal_likes or liked)
     secondary = next((tag for tag in liked if tag != primary), primary)
     target = [primary, secondary] if _rand(state) < 0.36 else [primary]
+    if _rand(state) < 0.24:
+        direct = _direct_order_candidate(state, card, budget_multiplier)
+        if direct:
+            direct_tags = [
+                tag for tag in direct["tags"] if tag in card["likes"]
+            ] or [primary]
+            return {
+                **common,
+                "ordering_mode": "direct",
+                "direct_drink_id": direct["id"],
+                "tags": direct_tags,
+                "target_tags": direct_tags,
+                "text": "“%s，就要这一杯。价格照酒单来，不必先替我换别的。”"
+                % direct["name"],
+                "revealed": True,
+            }
     if spending_style == "collector":
         return {
             **common,
@@ -2281,6 +2340,16 @@ def _request_for(state: Dict[str, Any], card: Dict[str, Any]) -> Dict[str, Any]:
                 _tag_text(target),
                 "不必拿最贵的。" if spending_style == "value" else "",
             ),
+            "revealed": True,
+        }
+    if reveal < 0.76:
+        return {
+            **common,
+            "ordering_mode": "uncertain",
+            "tags": [primary],
+            "target_tags": list(target),
+            "text": "“我还没决定喝哪一杯。先按%s给我两三个方向，我听完再选。”"
+            % TAGS[primary],
             "revealed": True,
         }
     text = _story_taste_clue(card, target, 0)
@@ -3443,6 +3512,8 @@ def _guest_purchase_decision(
         return "reject", "“我已经拒绝过这杯。换一个真正考虑我要求的推荐。”"
     request = active["request"]
     style = request.get("spending_style", "regular")
+    behavior = request.get("price_behavior", "easygoing")
+    ordering_mode = request.get("ordering_mode", "preference")
     multiplier = float(request.get("budget_multiplier", 1.15))
     spending_limit = max(
         1, int(round(int(card["budget"]) * multiplier)) - int(active.get("spent", 0))
@@ -3455,9 +3526,27 @@ def _guest_purchase_decision(
     mismatch = len(tags & set(card["dislikes"]))
     trust = int(state["records"][card["id"]].get("trust", 0))
     markup = price / max(1, fair_price)
+    decision_roll = _rand(state)
+    directly_ordered = request.get("direct_drink_id") == profile["id"]
+    wants_this = directly_ordered or match >= 2 or (
+        tier in ("signature", "collector") and style in ("premium", "collector")
+    )
+    if directly_ordered and price <= spending_limit * 1.18 and markup <= 1.38:
+        return (
+            "accept",
+            _choice(
+                state,
+                [
+                    "“对，就是我点的那杯。直接做，不用再替我推荐。”",
+                    "“酒和价格都写得清楚，照单来。”",
+                    "“我已经决定了。开这杯吧。”",
+                ],
+            ),
+        )
     if price > spending_limit * 1.35:
-        if match >= 2 or (
-            tier in ("signature", "collector") and style in ("premium", "collector")
+        if wants_this and (
+            behavior == "bargainer"
+            or (behavior == "deliberate" and decision_roll < 0.22)
         ):
             proposed = max(
                 fair_price,
@@ -3473,8 +3562,19 @@ def _guest_purchase_decision(
                 "“我想喝的确实是它，但%d点太离谱。我出%d点；你若愿意，我们现在成交。”"
                 % (price, proposed),
             )
+        if (
+            wants_this
+            and behavior == "decisive"
+            and price <= spending_limit * 1.6
+            and markup <= 1.48
+        ):
+            return "accept", "“报价比预想高，但我今晚就是要这杯。别换了。”"
         declined.append(profile["id"])
-        if price > spending_limit * 1.9 or markup > 1.8:
+        if (
+            behavior == "walkout_sensitive"
+            and (price > spending_limit * 1.75 or markup > 1.72)
+            and decision_roll < 0.72
+        ):
             active["closed"] = True
             active["served"] = True
             state["records"][card["id"]]["trust"] = max(-20, trust - 2)
@@ -3483,13 +3583,18 @@ def _guest_purchase_decision(
                 "“这不是今晚预算的问题，是报价让我不再信任这家店。”"
                 "对方没有要求换酒，直接起身离开。",
             )
+        if wants_this:
+            return (
+                "switch",
+                "“我确实想喝它，但不是按这个报价。今晚先换一杯，不必每次都把点单变成谈判。”",
+            )
         return (
             "switch",
             "“%d点超出了我今晚愿意付的范围。给我看便宜一点的，不要替我决定预算。”"
             % price,
         )
     if markup > 1.55:
-        if match >= 2:
+        if wants_this and behavior == "bargainer" and decision_roll < 0.8:
             proposed = max(fair_price, int(round(price * 0.78)))
             haggles[profile["id"]] = {
                 "asked": price,
@@ -3500,14 +3605,23 @@ def _guest_purchase_decision(
                 "haggle",
                 "“酒我想喝，但溢价我不认。%d点成交，否则我换别的。”" % proposed,
             )
+        if behavior == "walkout_sensitive" and decision_roll < 0.28:
+            declined.append(profile["id"])
+            active["closed"] = True
+            active["served"] = True
+            state["records"][card["id"]]["trust"] = max(-20, trust - 2)
+            return (
+                "walkout",
+                "“我不是来验证老板会不会宰客的。”对方看了一眼价格，直接离开。",
+            )
         declined.append(profile["id"])
-        state["records"][card["id"]]["trust"] = max(-20, trust - 2)
         return (
             "switch",
-            "“这杯的正常价值我看得出来。%d点不是高级，是把我当成不会算账。换一杯。”"
-            % price,
+            "“%d点高得没有必要。换一杯正常定价的；我不想为每个选择砍价。”" % price,
         )
     if tier in ("signature", "collector") and style not in ("premium", "collector"):
+        if directly_ordered:
+            return "accept", "“这是我自己点的，不是你强推的贵酒。开吧。”"
         if match <= 1 or trust < 5:
             declined.append(profile["id"])
             return (
@@ -3515,17 +3629,31 @@ def _guest_purchase_decision(
                 "“我没有说要最贵的。先给我一杯符合口味的%s。”"
                 % ("基础酒" if style == "value" else "常规酒"),
             )
-        approved.append(profile["id"])
-        return (
-            "consider",
-            "“它很贵，但你似乎不是只想清库存。先把用料、来历和为什么适合我讲清楚，我再决定。”",
-        )
+        if behavior == "deliberate" or decision_roll < 0.38:
+            approved.append(profile["id"])
+            return (
+                "consider",
+                "“它不便宜。先把用料、来历和为什么适合我讲清楚，我再决定。”",
+            )
+        return "accept", "“推荐理由够具体。我愿意试这杯，不必再来一轮推销。”"
     if style == "collector" and tier not in ("signature", "collector"):
         if match < 2:
             declined.append(profile["id"])
             return "switch", "“我点名要看店藏，不是把普通酒换个说法端给我。”"
     if price > spending_limit:
-        chance = 0.28 + min(trust, 20) * 0.02 + min(match, 3) * 0.10
+        behavior_bonus = {
+            "easygoing": 0.20,
+            "decisive": 0.16,
+            "deliberate": -0.04,
+            "bargainer": -0.10,
+            "walkout_sensitive": -0.16,
+        }.get(behavior, 0.0)
+        chance = (
+            0.24
+            + behavior_bonus
+            + min(trust, 20) * 0.02
+            + min(match, 3) * 0.10
+        )
         if _rand(state) > chance:
             declined.append(profile["id"])
             return (
@@ -3536,8 +3664,23 @@ def _guest_purchase_decision(
     if mismatch and match == 0:
         declined.append(profile["id"])
         return "switch", "“价格不是问题。问题是这杯根本没有听我在说什么。”"
+    if ordering_mode == "uncertain" and match < 2:
+        if behavior == "deliberate" or decision_roll < 0.58:
+            approved.append(profile["id"])
+            return (
+                "consider",
+                "“方向接近，但我还没完全决定。把它为什么适合我说具体一点，我再点头。”",
+            )
+        declined.append(profile["id"])
+        return "switch", "“我本来就在犹豫，这个理由还不够。给我另一个方向。”"
     if tier in ("signature", "collector"):
         return "accept", "“这杯确实配得上它的来历。开吧，我想尝试。”"
+    if behavior == "deliberate" and match <= 1 and decision_roll < 0.22:
+        approved.append(profile["id"])
+        return "consider", "“先别急着倒。告诉我你为什么从这几杯里选了它。”"
+    if behavior == "decisive" and match == 0 and decision_roll < 0.12:
+        declined.append(profile["id"])
+        return "switch", "“不是这杯。我已经决定换一个方向。”"
     return "accept", "“可以，这个价格和推荐都说得通。”"
 
 
