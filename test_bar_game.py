@@ -87,6 +87,40 @@ class InteractionTests(unittest.TestCase):
     def test_stage_increases_company_not_conflict_wording(self):
         self.assertIn("不直接增加冲突", bar_game.UPGRADE_DEFS["stage"]["desc"])
 
+    def test_later_guests_can_join_without_clearing_the_first_wave(self):
+        state = bar_game._default_state(260)
+        state["visit"] = 3
+        first_text = bar_game._spawn_scene(state, force=True)
+        first_ids = {guest["id"] for guest in state["active_guests"]}
+        self.assertTrue(first_ids)
+        for guest in state["active_guests"]:
+            guest["served"] = True
+            guest["closed"] = True
+        state["interaction"] = None
+        later_text = bar_game._spawn_scene(state, join_existing=True)
+        later_ids = {guest["id"] for guest in state["active_guests"]}
+        self.assertTrue(first_ids.issubset(later_ids))
+        self.assertGreater(len(later_ids), len(first_ids))
+        self.assertIn("营业中途又有人推门", later_text)
+        self.assertIn("制作流水线", first_text)
+
+    def test_known_companions_can_arrive_as_a_party(self):
+        found_party = False
+        for seed in range(1, 1200):
+            state = bar_game._default_state(seed)
+            state["visit"] = 4
+            text = bar_game._spawn_scene(state, force=True)
+            ids = {guest["id"] for guest in state["active_guests"]}
+            if len(ids) < 3 or "一伙本来就认识" not in text:
+                continue
+            self.assertTrue(
+                any(ids.issubset(set(group)) for group in bar_game.GUEST_COMPANION_GROUPS)
+            )
+            self.assertIn("一起看酒单", text)
+            found_party = True
+            break
+        self.assertTrue(found_party, "应能抽到原作熟人结伴到店")
+
 
 class WorldBreadthTests(unittest.TestCase):
     def test_ninja_world_and_cross_world_upgrades_exist(self):

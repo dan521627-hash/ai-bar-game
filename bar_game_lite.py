@@ -16,7 +16,7 @@ from urllib.request import Request, urlopen
 
 
 CORE_URL = "https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game_core.py"
-CORE_SHA256 = "ed457c0f4961a7f9b8116437191443040e882d5e12e192193778d63efae8118c"
+CORE_SHA256 = "0cf0f958a72cf5baab1d6f61b6af7dca83ed63196c33833c67372f7ac49b9d6d"
 _RUNTIME: Optional[Dict[str, Any]] = None
 _PUBLIC_API = (
     "new_game", "cmd", "write_archive", "restore_archive", "viewer_link",

@@ -1694,6 +1694,30 @@ for _item in _MODERN_FICTION_GUESTS:
     )
 
 
+GUEST_COMPANION_GROUPS = [
+    ("harry_potter_adult", "hermione_granger_adult", "ron_weasley_adult"),
+    ("monkey_d_luffy", "roronoa_zoro", "nami", "sanji", "nico_robin"),
+    ("naruto_adult", "sasuke_adult", "sakura_adult", "kakashi_hatake"),
+    ("tony_stark", "natasha_romanoff", "thor_marvel", "peter_parker_adult"),
+    ("leia_organa", "han_solo", "luke_skywalker"),
+    ("frodo_baggins", "samwise_gamgee", "aragorn", "legolas", "gimli"),
+    ("xia_yizhou", "qin_che", "shen_xinghui", "li_shen", "qi_yu"),
+    ("simon_ghost_riley", "john_price", "john_soap_mactavish", "farah_karim"),
+    ("leon_kennedy", "jill_valentine", "chris_redfield", "ada_wong"),
+    ("cloud_strife", "tifa_lockhart", "aerith_gainsborough"),
+    ("kazuma_kiryu", "goro_majima", "ichiban_kasuga"),
+    ("commander_shepard", "garrus_vakarian", "liara_tsoni", "tali_zorah"),
+    ("astarion", "shadowheart", "gale_dekarios", "karlach", "laezel"),
+    ("connor_detroit", "kara_detroit", "markus_detroit"),
+    ("zhongli", "beidou", "ningguang", "diluc", "kaeya"),
+    ("kafka_hsr", "welt_yang", "himeko_hsr", "blade_hsr", "jing_yuan"),
+    ("zhang_chulan", "feng_baobao", "wang_ye_yiren", "zhuge_qing_yiren"),
+    ("wu_liuqi", "meihua_shisan_adult"),
+    ("wei_wuxian_adult", "lan_wangji_adult"),
+    ("guo_jing_adult", "huang_rong_adult"),
+]
+
+
 def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
 
@@ -1752,6 +1776,8 @@ def _empty_session() -> Dict[str, Any]:
         "decor_events": [],
         "service_bonus": 0,
         "highlights": [],
+        "arrival_waves": 0,
+        "arrival_modes": [],
         "season": None,
         "opening_time": None,
         "weather": None,
@@ -3438,14 +3464,20 @@ def _maybe_decor_event(
     )
 
 
-def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
-    state["interaction"] = None
-    state["vendor"] = None
-    vendor_chance = 0.18 + state["upgrades"].get("portal", 0) * 0.025
-    if _rand(state) < vendor_chance:
-        state["active_guests"] = []
-        return _open_traveling_vendor(state)
-    if not force and _rand(state) < 0.22:
+def _spawn_scene(
+    state: Dict[str, Any], force: bool = False, join_existing: bool = False
+) -> str:
+    existing_active = list(state.get("active_guests", [])) if join_existing else []
+    if not join_existing:
+        state["interaction"] = None
+        state["vendor"] = None
+        vendor_chance = 0.18 + state["upgrades"].get("portal", 0) * 0.025
+        if _rand(state) < vendor_chance:
+            state["active_guests"] = []
+            return _open_traveling_vendor(state)
+    elif state.get("interaction") and state["interaction"].get("resolved"):
+        state["interaction"] = None
+    if not force and not join_existing and _rand(state) < 0.22:
         quiet = _choice(
             state,
             [
@@ -3455,7 +3487,20 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
             ],
         )
         return quiet
-    lead, generated = _select_scene_lead(state)
+    if join_existing:
+        occupied_ids = {guest["id"] for guest in existing_active}
+        available_leads = [
+            card for card in _all_guest_cards(state) if card["id"] not in occupied_ids
+        ]
+        if not available_leads:
+            return "此刻没有新的、不与当前客人重复的来客加入；吧台保持原来的节奏。"
+        lead = _weighted_choice(
+            state,
+            [(card, _guest_weight(state, card)) for card in available_leads],
+        )
+        generated = False
+    else:
+        lead, generated = _select_scene_lead(state)
     state["last_scene_generated_guest"] = generated
     if generated:
         state["session"]["highlights"].append(
@@ -3464,21 +3509,97 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
         )
     cards = _all_guest_cards(state)
     group_chance = 0.16 + state["upgrades"].get("stage", 0) * 0.08
-    count = 2 if _rand(state) < group_chance else 1
+    room_left = max(0, 4 - len(existing_active))
     chosen: List[Dict[str, Any]] = [lead]
+    occupied_ids = {guest["id"] for guest in existing_active}
     available = [
         item
         for item in cards
-        if item["id"] != lead["id"]
+        if item["id"] != lead["id"] and item["id"] not in occupied_ids
     ]
+    companion_tokens = {
+        str(value).strip().lower()
+        for value in lead.get("companions", [])
+        if str(value).strip()
+    }
+    for group in GUEST_COMPANION_GROUPS:
+        if lead["id"] in group:
+            companion_tokens.update(value.lower() for value in group if value != lead["id"])
+    companion_candidates = [
+        item
+        for item in available
+        if item["id"].lower() in companion_tokens
+        or item["name"].strip().lower() in companion_tokens
+    ]
+    companion_arrival = bool(companion_candidates) and _rand(state) < 0.34
+    if companion_arrival:
+        maximum_party = min(room_left, 4, 1 + len(companion_candidates))
+        count = min(
+            maximum_party,
+            2 + int(_rand(state) * min(3, max(1, len(companion_candidates)))),
+        )
+    elif join_existing:
+        count = 2 if room_left >= 2 and _rand(state) < 0.18 else 1
+    else:
+        count = 2 if _rand(state) < group_chance else 1
+    while companion_arrival and len(chosen) < count and companion_candidates:
+        card = _weighted_choice(
+            state,
+            [(item, _guest_weight(state, item)) for item in companion_candidates],
+        )
+        chosen.append(card)
+        companion_candidates = [
+            item for item in companion_candidates if item["id"] != card["id"]
+        ]
+        available = [item for item in available if item["id"] != card["id"]]
     for _ in range(min(max(0, count - len(chosen)), len(available))):
         card = _weighted_choice(
             state, [(item, _guest_weight(state, item)) for item in available]
         )
         chosen.append(card)
         available = [item for item in available if item["id"] != card["id"]]
-    state["active_guests"] = []
-    lines = []
+    if not join_existing:
+        state["active_guests"] = []
+        state["session"]["arrival_waves"] = 1
+    else:
+        state["session"]["arrival_waves"] = int(
+            state["session"].get("arrival_waves", 1)
+        ) + 1
+    if companion_arrival and len(chosen) > 1:
+        arrival_mode = "熟人伙伴结伴到店"
+    elif join_existing:
+        arrival_mode = "营业中途错峰加入"
+    elif len(chosen) == 2 and _rand(state) < 0.56:
+        arrival_mode = "两位结伴或同时到店"
+    elif len(chosen) == 2:
+        arrival_mode = "两位前后脚到店"
+    else:
+        arrival_mode = "单独到店"
+    state["session"].setdefault("arrival_modes", []).append(arrival_mode)
+    lines = [
+        {
+            "营业中途错峰加入": (
+                "⏳ 先到的客人还没有被机械清场，营业中途又有人推门。"
+                "新来客可以加入谈话、另坐一边，或只和老板交流。"
+            ),
+            "熟人伙伴结伴到店": (
+                "🚪 一伙本来就认识的朋友、伙伴或同事一起进门。他们会围在同一区域看酒单，"
+                "可以各点各的、一起要一轮，也会自然接住彼此的话。"
+            ),
+            "两位结伴或同时到店": (
+                "🚪 两位客人一起出现在门口；他们可能本来就同行，也可能只是恰好同时抵达。"
+            ),
+            "两位前后脚到店": (
+                "🚪 第一位刚坐下不久，门铃再次响起。两位客人的招待与谈话会在时间上重叠。"
+            ),
+            "单独到店": "🚪 今晚这一刻先有一位客人进门，但这不代表整晚只按单人队列运行。",
+        }[arrival_mode],
+        (
+            "【AI内部到店节奏规则｜不得原样展示】不要把酒馆演成“来一个、喝完、清场、"
+            "再来一个”的制作流水线。允许同来、错峰、后来者加入、各聊各的、自然冷场与多人对话；"
+            "根据人物关系和现场自主决定谁先开口，不强迫所有同场者互动。"
+        ),
+    ]
     for card in chosen:
         record = _guest_record(state, card)
         record["visits"] += 1
@@ -3510,7 +3631,7 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
         if card["id"] not in state["session"]["guests"]:
             state["session"]["guests"].append(card["id"])
         lines.append(
-            "🚪 %s推门进来。\n来源：%s｜%s\n%s"
+            "来客：%s\n来源：%s｜%s\n%s"
             % (card["name"], card["origin"], card["temperament"], request["text"])
         )
         lines.append(
@@ -3544,6 +3665,30 @@ def _spawn_scene(state: Dict[str, Any], force: bool = False) -> str:
     state["recent_guest_ids"] = state["recent_guest_ids"][-8:]
     if len(chosen) == 2:
         lines.append(_start_interaction(state, chosen[0], chosen[1]))
+    elif len(chosen) > 2:
+        state["session"]["highlights"].append(
+            "%s一行%d人结伴来到酒馆"
+            % ("、".join(card["name"] for card in chosen[:2]), len(chosen))
+        )
+        lines.append(
+            "【AI内部熟人同行演绎卡｜不得原样展示】这%d位来客不是互不相干的排队顾客。"
+            "结合他们原有关系，让他们一起看酒单、商量或分别点酒、互相接话、开熟人之间才懂的玩笑，"
+            "也允许其中一人安静旁听。每个人仍有独立预算、口味、杯数、耐受与醉态；"
+            "禁止把整桌人合并成同一种反应。"
+            % len(chosen)
+        )
+    elif join_existing and existing_active and not state.get("interaction"):
+        existing_cards = {
+            card["id"]: card for card in _all_guest_cards(state)
+        }
+        possible_partners = [
+            existing_cards[guest["id"]]
+            for guest in existing_active
+            if guest["id"] in existing_cards
+        ]
+        if possible_partners:
+            partner = _choice(state, possible_partners)
+            lines.append(_start_interaction(state, partner, chosen[0]))
     decor_event = _maybe_decor_event(state, chosen)
     if decor_event:
         lines.append(decor_event)
@@ -5389,6 +5534,12 @@ def register_guest(card: Dict[str, Any]) -> str:
         "canon_anchor": str(card["canon_anchor"]).strip()[:500],
         "adult": True,
         "created_by_ai": True,
+        "companions": [
+            str(value).strip()
+            for value in card.get("companions", [])
+            if str(value).strip()
+        ][:8],
+        "group_anchor": str(card.get("group_anchor", "")).strip()[:300],
     }
     state["generated_guest_no"] = generated_no
     state["custom_guests"].append(normalized)
@@ -5424,6 +5575,9 @@ def guest_creation_prompt() -> str:
         "不确定关键经历时换人，禁止硬编。不要只挑最热门或最近用过的作品。\n"
         "然后调用 register_guest({...})。必须填写：name、origin、adult=True、"
         "temperament、ethos、canon_anchor；可选填写 id、likes、dislikes、budget、rarity。"
+        "可以只创建一人，也可以创建2～4位原作中本来就是朋友、伙伴或同事的成年人物；"
+        "组团时逐个调用 register_guest，并在每张卡的 companions 写其他成员姓名或ID，"
+        "在 group_anchor 写清真实关系，不得把互不相干的人硬说成熟人。"
         "canon_anchor 要写具体经历、关系与行为边界，不写固定台词。注册器会检索现有图鉴："
         "已有卡不会重复创建，而会继续作为低频回头客；新卡只存入这家酒馆的私人档案。"
         % category
@@ -5936,6 +6090,19 @@ def _cmd_next(state: Dict[str, Any], args: List[str]) -> str:
         )
     if state.get("interaction") and not state["interaction"].get("resolved"):
         return _advance_interaction(state)
+    arrival_waves = int(state["session"].get("arrival_waves", 1))
+    if (
+        state["active_guests"]
+        and len(state["active_guests"]) < 4
+        and arrival_waves < 3
+        and _rand(state) < 0.48
+    ):
+        trend = _body_tick(state)
+        return (
+            _spawn_scene(state, join_existing=True)
+            + "\n\n老板状态："
+            + _body_line(state, trend)
+        )
     state["active_guests"] = []
     state["interaction"] = None
     trend = _body_tick(state)
