@@ -800,6 +800,61 @@ DECOR_DEFS.update(
             "tags": ["crisp", "spiced"],
             "desc": "可把一小块地面的重力调低，刺激但维护昂贵",
         },
+        "seal_screen": {
+            "name": "忍者世界封印术隔音屏",
+            "cost": 310,
+            "category": "artifact",
+            "rarity": "少见",
+            "condition": "术式稳定",
+            "maintenance": 2,
+            "tags": ["herbal", "dry"],
+            "event_tags": ["comfort", "memory"],
+            "desc": "展开后只隔绝不愿被旁人听见的话，不会阻断正常交谈",
+        },
+        "grand_line_compass": {
+            "name": "伟大航路永久指针陈列座",
+            "cost": 420,
+            "category": "artifact",
+            "rarity": "稀有",
+            "condition": "航路校准",
+            "maintenance": 2,
+            "tags": ["spiced", "crisp"],
+            "event_tags": ["memory", "portal"],
+            "desc": "指针会固执地指向某位来客最想回去、却未必还能抵达的地方",
+        },
+        "pixel_save_lamp": {
+            "name": "像素世界存档点灯",
+            "cost": 260,
+            "category": "soft",
+            "rarity": "少见",
+            "condition": "全新",
+            "maintenance": 1,
+            "tags": ["fruity", "crisp"],
+            "event_tags": ["memory", "comfort"],
+            "desc": "亮起时像是允许疲惫的来客暂时保存今晚，而不是重来人生",
+        },
+        "emotion_weather": {
+            "name": "情绪天气穹顶",
+            "cost": 760,
+            "category": "equipment",
+            "rarity": "典藏",
+            "condition": "跨维度翻新",
+            "maintenance": 6,
+            "tags": ["floral", "bitter"],
+            "event_tags": ["comfort", "performance", "memory"],
+            "desc": "只把得到允许的情绪变成局部雨、雾或星光，不替任何人解释感受",
+        },
+        "spirit_warming_array": {
+            "name": "修真界灵脉温酒阵",
+            "cost": 540,
+            "category": "hard",
+            "rarity": "稀有",
+            "condition": "阵纹完整",
+            "maintenance": 4,
+            "tags": ["herbal", "rich"],
+            "event_tags": ["comfort", "portal"],
+            "desc": "按酒体而非身份调整温度，灵力不足时也能当作可靠恒温台使用",
+        },
     }
 )
 
@@ -854,12 +909,32 @@ UPGRADE_DEFS: Dict[str, Dict[str, Any]] = {
     "stage": {
         "name": "小型舞台",
         "costs": [240, 480],
-        "desc": "提高多人同场和冲突事件的频率",
+        "desc": "提高多人同场、合奏、表演和轻松闲聊的频率，不直接增加冲突",
     },
     "kitchen": {
         "name": "深夜厨房",
         "costs": [130, 280],
         "desc": "提供更好的食物，缓和醉酒不适",
+    },
+    "translator": {
+        "name": "万界语境翻译器",
+        "costs": [210, 430],
+        "desc": "解释不同世界的礼节和语境，减少把文化差异误判成挑衅",
+    },
+    "guestbook": {
+        "name": "会回应的常客留言簿",
+        "costs": [150, 330],
+        "desc": "提高回头客出现与延续旧话题的机会，但不会排除新客",
+    },
+    "safety_ward": {
+        "name": "非强制安保结界",
+        "costs": [260, 520],
+        "desc": "只在危险升级时压低伤害与失控概率，不阻止正常争论",
+    },
+    "adaptive_ambience": {
+        "name": "跨维度自适应灯光",
+        "costs": [190, 390, 650],
+        "desc": "根据来客感官调整光线与声场，提高舒适度和酒的呈现",
     },
 }
 
@@ -1433,6 +1508,14 @@ _MODERN_FICTION_GUESTS = [
     ("tsunade", "纲手", "忍者世界·动画虚构来客", "豪爽、暴烈，对死亡与责任都太熟悉", "healing", 82, "rare"),
     ("gaara_adult", "成年后的我爱罗", "忍者世界·动画虚构来客", "安静、克制，从孤立中学会如何保护一座城", "belonging", 55, "rare"),
     ("itachi_uchiha", "宇智波鼬", "忍者世界·动画虚构来客", "温和而疏离，把无法辩解的选择独自背负", "sacrifice", 64, "rare"),
+    ("hinata_adult", "成年后的日向雏田", "忍者世界·动画虚构来客", "温柔而坚定，沉默从来不等于没有立场", "courage", 52, "uncommon"),
+    ("shikamaru_adult", "成年后的奈良鹿丸", "忍者世界·动画虚构来客", "怕麻烦却极有责任感，习惯先看清整盘棋", "strategy", 58, "uncommon"),
+    ("temari_adult", "成年后的手鞠", "忍者世界·动画虚构来客", "爽利、敏锐，不耐烦含糊其辞的试探", "clarity", 61, "uncommon"),
+    ("orochimaru", "大蛇丸", "忍者世界·动画虚构来客", "冷静、危险，把伦理边界当作可以不断试探的门", "knowledge", 79, "rare"),
+    ("jiraiya", "自来也", "忍者世界·动画虚构来客", "豪放、散漫，笑闹背后一直背着未能挽回的人", "legacy", 68, "rare"),
+    ("obito_uchiha", "宇智波带土", "忍者世界·动画虚构来客", "破碎、矛盾，理想主义曾被悲痛扭成灾难", "grief", 63, "rare"),
+    ("madara_uchiha", "宇智波斑", "忍者世界·动画虚构来客", "傲慢、强大，对和平的理解带着控制与绝望", "power", 86, "rare"),
+    ("nagato", "长门", "忍者世界·动画虚构来客", "克制、沉重，曾试图让世界通过共同疼痛理解和平", "peace", 57, "rare"),
     ("tony_stark", "托尼·斯塔克", "漫威宇宙·影视漫画来客", "锋利、爱炫耀，恐惧常被他包装成笑话和技术", "responsibility", 96, "rare"),
     ("wanda_maximoff", "旺达·马克西莫夫", "漫威宇宙·影视漫画来客", "敏感、强大，爱与失去会直接改变现实", "grief", 74, "rare"),
     ("natasha_romanoff", "娜塔莎·罗曼诺夫", "漫威宇宙·影视漫画来客", "冷静、戒备，把赎罪落实成一次次行动", "atonement", 70, "rare"),
@@ -1642,6 +1725,7 @@ def _empty_session() -> Dict[str, Any]:
         "guests": [],
         "reviews": [],
         "interactions": [],
+        "conflicts": 0,
         "decor_events": [],
         "service_bonus": 0,
         "highlights": [],
@@ -1700,6 +1784,7 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "last_scene_generated_guest": False,
         "recent_guest_ids": [],
         "interaction": None,
+        "last_conflict_visit": -99,
         "active_guests": [],
         "session": _empty_session(),
         "memories": [],
@@ -1749,9 +1834,11 @@ def _load() -> Dict[str, Any]:
     state.setdefault("last_scene_generated_guest", False)
     state.setdefault("recent_guest_ids", [])
     state.setdefault("interaction", None)
+    state.setdefault("last_conflict_visit", -99)
     state.setdefault("session", _empty_session())
     state["session"].setdefault("reviews", [])
     state["session"].setdefault("interactions", [])
+    state["session"].setdefault("conflicts", 0)
     state["session"].setdefault("decor_events", [])
     state["session"].setdefault("service_bonus", 0)
     state["session"].setdefault("owner_self_servings", 0)
@@ -2617,13 +2704,17 @@ def _select_scene_lead(state: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
     unseen = [card for card in BUILTIN_GUESTS if card["id"] not in state["records"]]
     rare = [card for card in BUILTIN_GUESTS if card.get("rarity") == "rare"]
     roll = _rand(state)
+    returning_cutoff = min(
+        0.70,
+        0.55 + state["upgrades"].get("guestbook", 0) * 0.06,
+    )
     if (
         roll >= 0.95
         and not state.get("last_scene_generated_guest", False)
         and int(state.get("visit", 0)) >= 2
     ):
         return _generate_wanderer(state), True
-    if roll < 0.55 and returning:
+    if roll < returning_cutoff and returning:
         pool = returning
     elif roll < 0.85 and unseen:
         pool = unseen
@@ -2641,22 +2732,40 @@ def _select_scene_lead(state: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
 
 
 _INTERACTION_KINDS = {
-    "debate": {
-        "name": "价值争论",
-        "topics": ["自由是否必须承担后果", "好意能否越过他人的选择", "规则失效后谁来定义正义"],
-        "delta": (6, 18),
+    "banter": {
+        "name": "吧台闲聊",
+        "topics": ["各自世界里最普通的一顿夜宵", "一种只有故乡人才懂的坏天气", "最不适合自己的称号"],
+        "delta": (-7, 4),
         "triggers": [
-            "{first}评价了吧台上一段旧新闻，{second}认为那句话正在替当事人决定什么才算正确。",
-            "{second}把自己的某次选择称为必要代价，{first}当场指出“必要”经常只是胜利者的说法。",
+            "{first}随口评价了杯垫上的图案，{second}发现那很像自己世界的一种日常标记。",
+            "{second}听见{first}点酒时用了一个陌生比喻，好奇地问那在故乡是什么意思。",
+            "两人同时觉得酒单上一款酒的名字太夸张，隔着一个空位笑了一声。",
+        ],
+        "escalations": [
+            "一方替另一方把普通经历浪漫化成传奇。",
+            "玩笑碰到对方不愿公开的身份或旧伤。",
+        ],
+        "mediation": [
+            "老板可以补充一杯水、一道夜宵或一个不抢话题的细节。",
+            "如果两人自然冷场，就让他们各自喝酒，不必强行续聊。",
+        ],
+    },
+    "debate": {
+        "name": "文明观点分歧",
+        "topics": ["自由是否必须承担后果", "好意能否越过他人的选择", "规则失效后谁来定义正义"],
+        "delta": (-2, 7),
+        "triggers": [
+            "{first}评价了吧台上一段旧新闻，{second}提出了一个不同角度，但语气仍然克制。",
+            "{second}把自己的某次选择称为必要代价，{first}追问“必要”由谁来决定。",
             "两人同时听见邻桌谈论“正确的牺牲”，却给出了完全相反的判断。",
         ],
         "escalations": [
-            "任何一方把另一方过去的牺牲说成怯懦、愚蠢或自我感动。",
-            "争论从原则转向审判对方本人，尤其是否认其曾经保护过的人。",
+            "任何一方停止讨论观点，转而审判对方本人。",
+            "有人把尚未核实的猜测说成对方真实经历。",
         ],
         "mediation": [
-            "先区分双方争的是原则、手段还是后果，不要用“你们都有道理”糊弄。",
-            "请双方各说一个自己原则不适用的例外，再寻找共同底线。",
+            "老板可以追问双方争的是原则、手段还是后果，不必急着劝和。",
+            "观点不同并不需要调停；只有人身攻击或威胁出现时才需要介入。",
         ],
     },
     "recognition": {
@@ -2731,6 +2840,14 @@ _INTERACTION_KINDS = {
     },
 }
 
+_CALM_INTERACTION_KINDS = {
+    "banter",
+    "recognition",
+    "story_exchange",
+    "debate",
+}
+_CONFLICT_INTERACTION_KINDS = {"rivalry", "misunderstanding"}
+
 
 def _build_interaction_case(
     state: Dict[str, Any],
@@ -2747,6 +2864,19 @@ def _build_interaction_case(
         "second_origin": second["origin"],
     }
     trigger = _choice(state, definition["triggers"]).format(**values)
+    if kind in _CALM_INTERACTION_KINDS:
+        return {
+            "trigger": trigger,
+            "position_a": "%s会从自己关于%s的经历出发说话，但不必说服任何人。"
+            % (first["name"], first["ethos"]),
+            "position_b": "%s可以赞同、追问、保留意见或礼貌结束话题。"
+            % second["name"],
+            "hidden_need_a": "%s更希望自己的经历被准确听见，而不是被总结成人设。"
+            % first["name"],
+            "hidden_need_b": "%s需要保留沉默和不继续交谈的权利。" % second["name"],
+            "escalation": _choice(state, definition["escalations"]),
+            "mediation": list(definition["mediation"]),
+        }
     return {
         "trigger": trigger,
         "position_a": "%s认为“%s”必须先守住%s；其担心%s的做法会让代价被轻描淡写。"
@@ -2782,6 +2912,50 @@ def _interaction_directive(state: Dict[str, Any], prefix: str = "") -> str:
                 interaction["topic"],
                 first,
                 second,
+            )
+        )
+    is_conflict = interaction["kind"] in _CONFLICT_INTERACTION_KINDS
+    if not is_conflict:
+        stage = (
+            "观点稍显尖锐"
+            if interaction["tension"] >= 35
+            else "认真交谈"
+            if interaction["tension"] >= 20
+            else "轻松或保持距离"
+        )
+        return (
+            "%s【AI内部双人交流卡｜不得原样展示给用户】\n"
+            "互动：%s｜话题：%s｜第%d轮｜交流张力%d/100（%s）\n"
+            "自然开场：%s\n"
+            "角色A：%s｜%s｜关注%s\n角色B：%s｜%s｜关注%s\n"
+            "A的表达方向：%s\nB的表达方向：%s\n"
+            "A未说出口的需要：%s\nB未说出口的需要：%s\n"
+            "需要避开的边界：%s\n"
+            "老板可以加入的方式：%s\n"
+            "这不是冲突卡。观点不同、沉默、互相警惕都不等于吵架；禁止擅自加入辱骂、"
+            "威胁、摔杯或动手。两人可以闲聊、碰杯、讲故事、礼貌争论，也可以发现不投缘后"
+            "各自喝酒。后一人的话要回应前一人的具体内容，不能各说一段独白。"
+            "老板可以加入，但不需要劝架。结尾允许自然冷场或各自转开视线，不要强行制造事故。\n"
+            % (
+                prefix,
+                interaction["kind_name"],
+                interaction["topic"],
+                interaction["turns"],
+                interaction["tension"],
+                stage,
+                interaction["trigger"],
+                first["name"],
+                first["temperament"],
+                first["ethos"],
+                second["name"],
+                second["temperament"],
+                second["ethos"],
+                interaction["position_a"],
+                interaction["position_b"],
+                interaction["hidden_need_a"],
+                interaction["hidden_need_b"],
+                interaction["escalation"],
+                "；".join(interaction["mediation"]),
             )
         )
     stage = (
@@ -2834,12 +3008,34 @@ def _interaction_directive(state: Dict[str, Any], prefix: str = "") -> str:
 def _start_interaction(
     state: Dict[str, Any], first: Dict[str, Any], second: Dict[str, Any]
 ) -> str:
-    if first["ethos"] != second["ethos"]:
-        kind = _choice(state, ["debate", "rivalry", "misunderstanding"])
-        tension = 38 + int(_rand(state) * 25)
+    if _rand(state) < 0.40:
+        state["interaction"] = None
+        return (
+            "【AI内部同场关系｜不得原样展示给用户】"
+            "%s与%s注意到了彼此，但没有形成持续互动。可以只有一次点头、短暂打量或礼貌让位；"
+            "如果看不对眼，就让他们各自喝自己的。禁止为了热闹擅自制造争吵。"
+            % (first["name"], second["name"])
+        )
+
+    translator_level = state["upgrades"].get("translator", 0)
+    conflict_allowed = (
+        int(state["session"].get("conflicts", 0)) == 0
+        and state["visit"] - int(state.get("last_conflict_visit", -99)) >= 3
+    )
+    conflict_chance = max(0.008, 0.03 - translator_level * 0.009)
+    if conflict_allowed and _rand(state) < conflict_chance:
+        kind = _choice(state, ["rivalry", "misunderstanding"])
+        tension = 34 + int(_rand(state) * 15)
+        state["last_conflict_visit"] = state["visit"]
+        state["session"]["conflicts"] = int(state["session"].get("conflicts", 0)) + 1
     else:
-        kind = _choice(state, ["recognition", "story_exchange", "debate"])
-        tension = 18 + int(_rand(state) * 24)
+        friendly_chance = 0.78 if first["ethos"] != second["ethos"] else 0.90
+        if _rand(state) < friendly_chance:
+            kind = _choice(state, ["banter", "recognition", "story_exchange"])
+            tension = 6 + int(_rand(state) * 15)
+        else:
+            kind = "debate"
+            tension = 14 + int(_rand(state) * 15)
     definition = _INTERACTION_KINDS[kind]
     topic = _choice(state, definition["topics"])
     case = _build_interaction_case(state, kind, topic, first, second)
@@ -2856,7 +3052,7 @@ def _start_interaction(
     }
     return _interaction_directive(
         state,
-        "两位来客已经注意到彼此，互动不是背景装饰。\n",
+        "两位来客已经注意到彼此，但交流不等于冲突。\n",
     )
 
 
@@ -2888,8 +3084,59 @@ def _advance_interaction(state: Dict[str, Any]) -> str:
     interaction["turns"] += 1
     low, high = _INTERACTION_KINDS[interaction["kind"]]["delta"]
     delta = low + int(_rand(state) * (high - low + 1))
-    if state["upgrades"].get("quiet_booth", 0):
-        delta -= 3
+    is_conflict = interaction["kind"] in _CONFLICT_INTERACTION_KINDS
+    if not is_conflict:
+        if delta > 0:
+            delta -= state["upgrades"].get("quiet_booth", 0) * 2
+            delta -= state["upgrades"].get("translator", 0) * 2
+        interaction["tension"] = int(
+            _clamp(interaction["tension"] + delta, 0, 100)
+        )
+        can_escalate = (
+            interaction["kind"] == "debate"
+            and int(state["session"].get("conflicts", 0)) == 0
+            and state["visit"] - int(state.get("last_conflict_visit", -99)) >= 3
+        )
+        escalation_chance = max(
+            0.015,
+            0.06 - state["upgrades"].get("translator", 0) * 0.018,
+        )
+        if can_escalate and interaction["turns"] >= 1 and _rand(state) < escalation_chance:
+            first, second = _interaction_cards(state, interaction)
+            kind = _choice(state, ["misunderstanding", "rivalry"])
+            definition = _INTERACTION_KINDS[kind]
+            topic = _choice(state, definition["topics"])
+            interaction.update(
+                {
+                    "kind": kind,
+                    "kind_name": definition["name"],
+                    "topic": topic,
+                    **_build_interaction_case(state, kind, topic, first, second),
+                    "tension": max(34, int(interaction["tension"])),
+                }
+            )
+            state["last_conflict_visit"] = state["visit"]
+            state["session"]["conflicts"] = 1
+            return _interaction_directive(
+                state,
+                "原本克制的观点分歧碰到了具体旧事，气氛才开始真正升级。\n",
+            )
+        if interaction["turns"] >= 3 or interaction["tension"] <= 5:
+            first, second = _interaction_cards(state, interaction)
+            summary = "第%d次营业，%s与%s围绕“%s”的交谈自然收束" % (
+                state["visit"],
+                first["name"],
+                second["name"],
+                interaction["topic"],
+            )
+            _resolve_interaction(state, summary, 1)
+            return summary + "。他们可以因此更理解彼此，也可以只是礼貌地各自喝完。"
+        return _interaction_directive(state, "两人的交流自然继续。\n")
+
+    delta -= state["upgrades"].get("quiet_booth", 0) * 2
+    delta -= state["upgrades"].get("safety_ward", 0) * 5
+    if interaction["kind"] == "misunderstanding":
+        delta -= state["upgrades"].get("translator", 0) * 4
     interaction["tension"] = int(
         _clamp(interaction["tension"] + delta, 0, 100)
     )
@@ -2925,6 +3172,7 @@ def _cmd_intervene(state: Dict[str, Any], args: List[str]) -> str:
     action = args[0].lower()
     words = " ".join(args[1:]).strip()
     first, second = _interaction_cards(state, interaction)
+    is_conflict = interaction["kind"] in _CONFLICT_INTERACTION_KINDS
     if action == "listen":
         return _advance_interaction(state)
     if action == "join":
@@ -2933,6 +3181,11 @@ def _cmd_intervene(state: Dict[str, Any], args: List[str]) -> str:
             ("：“" + words + "”") if words else ""
         )
     elif action == "mediate":
+        if not is_conflict:
+            return (
+                "两位来客目前只是在交谈或表达不同观点，没有需要调停的冲突。"
+                "老板可以 listen、join 或 story，也可以让他们自然结束话题。"
+            )
         reduction = 20 if words else 10
         interaction["tension"] = int(_clamp(interaction["tension"] - reduction))
         prefix = (
@@ -2952,6 +3205,8 @@ def _cmd_intervene(state: Dict[str, Any], args: List[str]) -> str:
             ("：“" + words + "”") if words else ""
         )
     elif action == "separate":
+        if not is_conflict:
+            return "现场没有吵架或人身危险，不需要强行拉开双方。"
         summary = "第%d次营业，老板在%s与%s的冲突中强行拉开双方" % (
             state["visit"],
             first["name"],
@@ -2967,11 +3222,11 @@ def _cmd_intervene(state: Dict[str, Any], args: List[str]) -> str:
     interaction["turns"] += 1
     interaction["history"].append(prefix.strip())
     if interaction["tension"] <= 10:
-        summary = "第%d次营业，老板的介入让%s与%s暂时停下争执" % (
-            state["visit"],
-            first["name"],
-            second["name"],
-        )
+        summary = (
+            "第%d次营业，老板的介入让%s与%s暂时停下争执"
+            if is_conflict
+            else "第%d次营业，老板陪%s与%s把话题自然聊到收尾"
+        ) % (state["visit"], first["name"], second["name"])
         _resolve_interaction(state, summary, 1)
         return summary + "。双方记住了老板这次介入。"
     return _interaction_directive(state, prefix)
@@ -3871,6 +4126,7 @@ def _score_guest(
     if intox >= 42:
         score -= int((intox - 38) * 0.22)
     score += state["upgrades"].get("glassware", 0) * 3
+    score += state["upgrades"].get("adaptive_ambience", 0) * 2
     score += min(len(state.get("decorations", {})), 5)
     score += int(state.get("session", {}).get("service_bonus", 0))
     score += int((_rand(state) - 0.5) * 8)
@@ -5075,9 +5331,10 @@ def conversation_turn(user_message: str = "") -> str:
 
 def _help() -> str:
     return """《空杯俱乐部》内部指令（用户只需自然说话，由 AI 代为调用）
-setup "酒吧名" 喜欢标签 [讨厌标签]  建立老板口味
+setup "酒吧名" like=标签 avoid=标签 建立老板口味；多个标签用逗号
+例：setup "树洞酒馆" like=sweet,floral,fruity,crisp avoid=smoky,bitter
 design "空间、材质、灯光与世界观"     由AI写下酒吧设计方向
-shop / buy <货号> [数量]             常驻商店 / 进货
+shop / buy <货号> [数量]             常驻商店 / 进货；例：buy s1 2，buy 1也可
 vendor                               查看当前随机游商
 open / next / leave                  开门 / 推进一步 / 离店
 drinks                               查看当前可出的酒
@@ -5115,11 +5372,66 @@ def _cmd_setup(state: Dict[str, Any], args: List[str]) -> str:
     if state["phase"] != "setup":
         return "酒吧已经建立，不能重新覆盖老板口味。"
     if len(args) < 2:
-        return '用法：setup "酒吧名" smoky,woody,rich [sweet,floral]'
-    likes = [tag for tag in args[1].split(",") if tag]
-    dislikes = [tag for tag in args[2].split(",") if tag] if len(args) > 2 else []
+        return (
+            '用法：setup "酒吧名" like=喜欢标签 avoid=回避标签\n'
+            '示例：setup "树洞酒馆" like=sweet,floral,fruity,crisp '
+            'avoid=smoky,bitter'
+        )
+
+    raw_tokens = args[1:]
+    likes: List[str] = []
+    dislikes: List[str] = []
+    has_named_group = any(
+        token.lower().startswith(("like=", "likes=", "avoid=", "dislike=", "dislikes="))
+        for token in raw_tokens
+    )
+    legacy_two_columns = (
+        not has_named_group
+        and len(raw_tokens) == 2
+        and "," in raw_tokens[0]
+        and "," in raw_tokens[1]
+        and not raw_tokens[1].startswith("[")
+    )
+    if legacy_two_columns:
+        likes.extend(tag for tag in raw_tokens[0].split(",") if tag)
+        dislikes.extend(tag for tag in raw_tokens[1].split(",") if tag)
+    else:
+        target = likes
+        for raw in raw_tokens:
+            token = raw.strip()
+            lowered = token.lower()
+            for prefix in ("like=", "likes="):
+                if lowered.startswith(prefix):
+                    target = likes
+                    token = token[len(prefix) :]
+                    break
+            else:
+                for prefix in ("avoid=", "dislike=", "dislikes="):
+                    if lowered.startswith(prefix):
+                        target = dislikes
+                        token = token[len(prefix) :]
+                        break
+            if token.startswith("["):
+                target = dislikes
+                token = token[1:]
+            closes_group = token.endswith("]")
+            if closes_group:
+                token = token[:-1]
+            target.extend(tag for tag in token.split(",") if tag)
+            if closes_group:
+                target = dislikes
+
+    likes = list(dict.fromkeys(likes))
+    dislikes = list(dict.fromkeys(dislikes))
     if not likes or not set(likes + dislikes).issubset(TAGS):
-        return "口味标签不正确。用 help 查看可用标签。"
+        return (
+            "口味标签不正确。多个标签请用逗号，方括号可以省略。\n"
+            '正确示例：setup "树洞酒馆" '
+            "like=sweet,floral,fruity,crisp avoid=smoky,bitter"
+        )
+    overlap = set(likes) & set(dislikes)
+    if overlap:
+        return "同一种风味不能同时喜欢和回避：%s。" % ",".join(sorted(overlap))
     state["bar_name"] = args[0]
     state["owner_likes"] = list(dict.fromkeys(likes))
     state["owner_dislikes"] = list(dict.fromkeys(dislikes))
@@ -5195,14 +5507,17 @@ def _cmd_vendor(state: Dict[str, Any], args: List[str]) -> str:
 
 def _cmd_buy(state: Dict[str, Any], args: List[str]) -> str:
     if not args:
-        return "用法：buy <货号> [数量]"
+        return "用法：buy <货号> [数量]。例如 buy s1 2；输入 buy 1 会自动按商店 s1 处理。"
+    requested_id = args[0].lower()
+    if requested_id.isdigit():
+        requested_id = "s" + requested_id
     shop_offer = next(
-        (item for item in state["market"] if item["offer_id"] == args[0]), None
+        (item for item in state["market"] if item["offer_id"] == requested_id), None
     )
     vendor = state.get("vendor")
     vendor_offer = (
         next(
-            (item for item in vendor["offers"] if item["offer_id"] == args[0]),
+            (item for item in vendor["offers"] if item["offer_id"] == requested_id),
             None,
         )
         if vendor
@@ -5210,7 +5525,10 @@ def _cmd_buy(state: Dict[str, Any], args: List[str]) -> str:
     )
     offer = shop_offer or vendor_offer
     if not offer:
-        return "常驻商店和当前游商都没有这个货号。"
+        return (
+            "常驻商店和当前游商都没有这个货号。常驻商店用 s1、s2……"
+            "（也可以只输1、2）；游商用 v1、v2……"
+        )
     try:
         count = int(args[1]) if len(args) > 1 else 1
     except ValueError:
@@ -5987,10 +6305,17 @@ def _cmd_talk(state: Dict[str, Any], args: List[str]) -> str:
     if state.get("interaction") and guest_id in state["interaction"].get(
         "participants", []
     ):
-        interaction_context = (
-            "当前还与另一位来客围绕“%s”互动，回答可以自然受到这段现场影响。"
-            % state["interaction"]["topic"]
-        )
+        if state["interaction"]["kind"] in _CONFLICT_INTERACTION_KINDS:
+            interaction_context = (
+                "当前与另一位来客围绕“%s”的交流已经进入真实冲突，回答要回应具体导火索。"
+                % state["interaction"]["topic"]
+            )
+        else:
+            interaction_context = (
+                "当前还与另一位来客围绕“%s”进行普通交流；这不是吵架，"
+                "可以闲聊、保留意见、沉默或各自喝酒，禁止擅自升级。"
+                % state["interaction"]["topic"]
+            )
     internal_brief = (
         "【执行AI内部演绎卡｜不得原样展示给用户】\n"
         "角色：%s｜来处：%s｜性格：%s｜价值立场：%s\n"
@@ -6730,8 +7055,8 @@ def new_game(seed: Optional[int] = None) -> str:
         return "⚠️ 无法建立新游戏：%s" % exc
     return (
         "《空杯俱乐部》已建立空白档案（种子%d）。\n"
-        "第一步由AI自己决定酒吧名与口味："
-        'setup "酒吧名" 喜欢标签 [讨厌标签]。' % seed_value
+        "第一步由AI自己决定酒吧名与口味，多个标签用逗号："
+        'setup "酒吧名" like=sweet,floral avoid=smoky,bitter。' % seed_value
     )
 
 
