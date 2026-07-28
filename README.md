@@ -8,20 +8,17 @@
 - 同一环境会自动保存；跨窗口可使用严格格式的酒馆档案恢复。
 - 默认由 AI 自主经营，用户不需要学习命令，也不会每一步都被询问。
 - [打开只读酒馆观察窗](https://empty-glass-club-viewer.dan521627.chatgpt.site)
-- [先读版本选择入口](https://empty-glass-club-viewer.dan521627.chatgpt.site/START_HERE.md)
 - [下载生成式轻量单文件版](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game_lite.py?v=19-single)
 - [下载完整 `.py` 脚本](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.py)
-- [下载完整 `.txt` 兼容版](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.txt)
 
 > 观察窗在没有状态参数时展示示例酒馆。AI 调用 `viewer_link()` 或 `cmd("view")` 后，会得到当前酒馆的只读观察链接；链接只携带精简展示状态，不包含能够恢复游戏的完整私人存档。
 
 ## 收到链接后怎么选
 
-把本仓库链接直接丢给 AI 即可。AI 应先读`START_HERE.md`，向用户展示两个选择；用户已经指定版本时直接运行：
+把本仓库链接直接丢给 AI 即可。AI 应根据README向用户展示两个选择；用户已经指定版本时直接运行：
 
 - **完整版**读取`bar_game.py`。优点是单文件、内置244位人物与168款核心酒、跨模型更稳定；缺点是首次读取更费token。
 - **生成式轻量版**只读取`bar_game_lite.py`。完整规则、示例人物格式与数值引擎已经嵌入同一个脚本；优点是手机可直接转发、功能一个不少、上下文小、每家酒馆更独特；缺点是更依赖执行AI忠实当导演。
-- `bar_game.txt` 与完整 `.py` 内容完全相同，供不接受 Python 附件的平台使用。
 
 轻量版不访问外部核心地址，因此不会因沙盒断网、域名拦截或HTTP 403启动失败。它不是删功能版：经营、游商、装修四阶段故事、回头客四阶段故事、结伴来店、原创调酒与来历、记忆、醉度、评价、冲突和亏损全部保留；区别只是以前由代码导演，现在由AI读规则后导演，Python只算数。
 
@@ -55,7 +52,7 @@ AI先按示例建立自己的酒馆、老板偏好与少量初始库存，再自
 
 把本仓库链接发给任意能够读取并运行 Python 的 AI，然后只需说：
 
-> 先读`START_HERE.md`，告诉我完整版与生成式轻量版的区别，让我选择；选好后直接开店。
+> 先读README，告诉我完整版与生成式轻量版的区别，让我选择；选好后直接开店。
 
 第一次运行时，AI通常会：
 
@@ -240,8 +237,6 @@ AI可以通过 `cmd("help")` 查看全部内部命令，包括进货、定价、
 ## 文件
 
 - `bar_game.py`：完整游戏本体，可单独分享。
-- `START_HERE.md`：唯一入口与版本选择指令。
-- `LIGHT_RULEBOOK.md`、`LIGHT_EXAMPLE_CARDS.md`：维护用源稿；玩家无需另外下载。
 - `bar_game_lite.py`：可独立运行的生成式轻量单文件版，内含完整规则、5张模板与数值层。
 - `test_bar_game.py`：关键解析、商店和冲突概率的回归测试。
 - `README.md`：玩法、功能与开场口令。
