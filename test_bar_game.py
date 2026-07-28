@@ -1,4 +1,5 @@
 import unittest
+import importlib.util
 from collections import Counter
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -246,6 +247,23 @@ class DynamicGuestTests(unittest.TestCase):
                 self.assertIn("检索现有图鉴", prompt)
             finally:
                 bar_game.SAVE_PATH = previous_path
+
+    def test_lite_launcher_exports_api_before_core_is_loaded(self):
+        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        spec = importlib.util.spec_from_file_location("lite_import_test", launcher_path)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertIsNone(module._RUNTIME)
+        for name in (
+            "new_game",
+            "cmd",
+            "viewer_link",
+            "guest_creation_prompt",
+            "register_guest",
+        ):
+            self.assertTrue(callable(getattr(module, name, None)), name)
 
 
 if __name__ == "__main__":

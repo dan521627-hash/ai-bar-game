@@ -46,6 +46,50 @@ def _load() -> None:
     globals().update({name: namespace[name] for name in _PUBLIC_API})
 
 
+def _invoke(name: str, *args: Any, **kwargs: Any) -> Any:
+    """兼容先导入函数、后载入核心的平台；调用顺序不再影响启动。"""
+    _load()
+    if _RUNTIME is None:
+        raise RuntimeError("轻量核心没有成功载入。")
+    return _RUNTIME[name](*args, **kwargs)
+
+
+def new_game(seed: Optional[int] = None) -> str:
+    return _invoke("new_game", seed)
+
+
+def cmd(command: str) -> str:
+    return _invoke("cmd", command)
+
+
+def write_archive() -> str:
+    return _invoke("write_archive")
+
+
+def restore_archive(archive_text: str) -> str:
+    return _invoke("restore_archive", archive_text)
+
+
+def viewer_link() -> str:
+    return _invoke("viewer_link")
+
+
+def conversation_turn(user_message: str = "") -> str:
+    return _invoke("conversation_turn", user_message)
+
+
+def guest_creation_prompt() -> str:
+    return _invoke("guest_creation_prompt")
+
+
+def register_guest(card: Dict[str, Any]) -> str:
+    return _invoke("register_guest", card)
+
+
+def register_guests(cards: Any) -> str:
+    return _invoke("register_guests", cards)
+
+
 def start() -> str:
     """载入轻量核心；AI可根据环境自行改用完整版或可选角色包。"""
     try:
