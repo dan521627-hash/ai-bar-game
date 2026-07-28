@@ -179,11 +179,29 @@ define_recipe(
 
 ## 9. 售卖与老板自饮
 
+客人尚未决定是否购买时，先调用：
+
+```python
+quote_decision(
+    "guest_id",
+    "recipe_id",
+    budget_remaining=75,
+    willingness=0.72,
+    price_sensitivity=1.0,
+    explained=False,
+    attempt=0,
+)
+```
+
+返回值可能是`accept`、`ask_explain`、`haggle`、`switch_cheaper`、`decline`或`walk_out`。一次拒绝不是永久状态；解释、改价或换酒后增加`attempt`重新判断。只有返回`accept`才能出杯。
+
 给客人出杯：
 
 ```python
-serve("guest_id", "recipe_id", price=68, tip=6)
+serve("guest_id", "recipe_id", price=68, tip=6, service_cost=4)
 ```
+
+`serve()`会同时扣库存并自动支付冰、装饰、杯具清洁等本杯耗材；不得再重复调用`spend()`扣同一笔费用。
 
 老板自己喝：
 
@@ -259,13 +277,13 @@ AI依据返回分数写入口、发展、收尾、身体反应和人物自己的
 
 醉酒不是吐真剂，不等于色情化、愚蠢、暴力或统一哭闹。重醉后停止供酒，安排水、食物、休息或安全离店。
 
-离店后仍有醉意时，每轮普通对话前调用：
+酒精分为已经显现的`intox`与仍在吸收的`pending`。刚离店时醉度可能继续上升，不能因为当前数字不高就立刻恢复正常。离店后每轮普通对话前调用：
 
 ```python
 conversation_turn("owner")
 ```
 
-直到返回清醒，AI才能恢复平常表达。
+返回值中的`body`、`cognition`、`expression`和`hard_limit`是本轮不可跳过的演绎约束。直到`must_act=False`，AI才能完全恢复平常表达。
 
 ## 13. NPC之间的互动与冲突
 
@@ -606,6 +624,7 @@ def _default_state(
                 "tolerance": _clamp(owner_tolerance, 5, 95),
                 "absorption": _clamp(owner_absorption, 0.5, 1.5),
                 "intox": 0.0,
+                "pending": 0.0,
                 "peak": 0.0,
                 "units": 0.0,
             }
@@ -648,6 +667,10 @@ def _load() -> Dict[str, Any]:
         raise ValueError("轻量数值存档版本不兼容。")
     state.setdefault("debt", 0)
     state.setdefault("debt_due", 0)
+    for person in state.get("people", {}).values():
+        person.setdefault("pending", 0.0)
+        person.setdefault("peak", float(person.get("intox", 0)))
+        person.setdefault("units", 0.0)
     return state
 
 
@@ -885,6 +908,7 @@ def register_person(
         "tolerance": round(_clamp(tolerance, 5, 95), 2),
         "absorption": round(_clamp(absorption, 0.5, 1.5), 3),
         "intox": float(previous.get("intox", 0)),
+        "pending": float(previous.get("pending", 0)),
         "peak": float(previous.get("peak", 0)),
         "units": float(previous.get("units", 0)),
     }
@@ -902,6 +926,7 @@ def _add_alcohol(
             "tolerance": 50.0,
             "absorption": 1.0,
             "intox": 0.0,
+            "pending": 0.0,
             "peak": 0.0,
             "units": 0.0,
         }
@@ -909,14 +934,26 @@ def _add_alcohol(
     tolerance = float(person["tolerance"])
     absorption = float(person["absorption"])
     sensitivity = _clamp((1.24 - tolerance / 130) * absorption, 0.25, 1.45)
-    gain = float(alcohol_units) * 13.0 * sensitivity
-    person["intox"] = round(_clamp(float(person["intox"]) + gain, 0, 100), 2)
+    total_gain = float(alcohol_units) * 13.0 * sensitivity
+    immediate_gain = total_gain * 0.4
+    pending_added = total_gain - immediate_gain
+    person["intox"] = round(
+        _clamp(float(person["intox"]) + immediate_gain, 0, 100),
+        2,
+    )
+    person["pending"] = round(
+        _clamp(float(person.get("pending", 0)) + pending_added, 0, 100),
+        2,
+    )
     person["peak"] = max(float(person["peak"]), float(person["intox"]))
     person["units"] = round(float(person["units"]) + float(alcohol_units), 2)
     return {
         "person_id": person_id,
-        "gain": round(gain, 2),
+        "gain": round(immediate_gain, 2),
+        "pending_added": round(pending_added, 2),
+        "projected_total_gain": round(total_gain, 2),
         "intox": person["intox"],
+        "pending": person["pending"],
         "stage": intox_stage(person["intox"]),
     }
 
@@ -927,6 +964,7 @@ def serve(
     price: Optional[int] = None,
     tip: int = 0,
     portions: int = 1,
+    service_cost: Optional[int] = None,
 ) -> Dict[str, Any]:
     """扣客人实际喝掉的库存、入账，并计算其醉度。"""
     state = _load()
@@ -942,6 +980,18 @@ def serve(
         raise ValueError("售价和小费不能为负数。")
     received = unit_price * portions + int(tip)
     _money(state, received, "售出：" + recipe["name"], "sale")
+    service_cost_value = (
+        max(0, int(service_cost))
+        if service_cost is not None
+        else 4 * portions
+    )
+    if service_cost_value:
+        _money(
+            state,
+            -service_cost_value,
+            "售出耗材：" + recipe["name"],
+            "service",
+        )
     state["session"]["served"] += portions
     intox = _add_alcohol(
         state,
@@ -951,8 +1001,10 @@ def serve(
     _save(state)
     return {
         "received": received,
+        "service_cost": service_cost_value,
+        "net_cash_change": received - service_cost_value,
         "allocated_ingredient_cost": cost,
-        "gross_margin": round(received - cost, 2),
+        "gross_margin": round(received - cost - service_cost_value, 2),
         "cash": state["cash"],
         "intox": intox,
     }
@@ -1013,6 +1065,69 @@ def score_drink(
         score -= min(32, 8 + (int(price) - int(budget)) // 3)
     score = int(_clamp(score, 0, 100))
     return {"score": score, "stars": stars(score)}
+
+
+def quote_decision(
+    person_id: str,
+    recipe_id: str,
+    budget_remaining: int,
+    willingness: float = 0.72,
+    price_sensitivity: float = 1.0,
+    explained: bool = False,
+    attempt: int = 0,
+) -> Dict[str, Any]:
+    """统一计算客人面对报价时的选择，不把一次拒绝固化为永久拒绝。"""
+    state = _load()
+    person_id = _safe_id(person_id)
+    recipe_id = _safe_id(recipe_id)
+    if recipe_id not in state["recipes"]:
+        raise KeyError("没有这张配方。")
+    price = int(state["recipes"][recipe_id]["price"])
+    budget = max(0, int(budget_remaining))
+    attempt = max(0, int(attempt))
+    roll = _rand(state)
+    if budget <= 0:
+        decision = "walk_out"
+        accept_chance = 0.0
+    else:
+        ratio = price / max(1, budget)
+        accept_chance = _clamp(
+            float(willingness)
+            - max(0.0, ratio - 0.55) * 0.58 * _clamp(price_sensitivity, 0.2, 2)
+            + (0.13 if explained else 0.0)
+            + min(attempt, 3) * 0.07,
+            0.05,
+            0.95,
+        )
+        if price > budget:
+            if ratio >= 1.65 and roll > 0.28:
+                decision = "walk_out"
+            elif roll < 0.48:
+                decision = "haggle"
+            else:
+                decision = "switch_cheaper"
+        elif not explained and attempt == 0 and ratio >= 0.62 and roll < 0.34:
+            decision = "ask_explain"
+        elif roll < accept_chance:
+            decision = "accept"
+        elif ratio >= 0.82 and roll > 0.82:
+            decision = "walk_out"
+        elif ratio >= 0.68:
+            decision = "switch_cheaper"
+        else:
+            decision = "decline"
+    _save(state)
+    return {
+        "person_id": person_id,
+        "recipe_id": recipe_id,
+        "price": price,
+        "budget_remaining": budget,
+        "attempt": attempt,
+        "explained": bool(explained),
+        "decision": decision,
+        "accept_chance": round(accept_chance, 4),
+        "roll": round(roll, 5),
+    }
 
 
 def stars(score: float) -> int:
@@ -1085,27 +1200,111 @@ def advance_turn(
         if person_id not in state["people"]:
             continue
         person = state["people"][person_id]
-        decay = (2.2 + float(person["tolerance"]) * 0.024) * turns
-        person["intox"] = round(
-            _clamp(float(person["intox"]) - decay, 0, 100),
-            2,
-        )
+        start_intox = float(person["intox"])
+        absorbed_total = 0.0
+        decay_total = 0.0
+        for _ in range(turns):
+            absorption_step = min(
+                float(person.get("pending", 0)),
+                3.0 + float(person["absorption"]) * 1.5,
+            )
+            decay_step = 2.2 + float(person["tolerance"]) * 0.024
+            person["pending"] = round(
+                max(0.0, float(person.get("pending", 0)) - absorption_step),
+                2,
+            )
+            person["intox"] = round(
+                _clamp(
+                    float(person["intox"]) + absorption_step - decay_step,
+                    0,
+                    100,
+                ),
+                2,
+            )
+            absorbed_total += absorption_step
+            decay_total += decay_step
+            person["peak"] = max(float(person["peak"]), float(person["intox"]))
+        delta = float(person["intox"]) - start_intox
         people_result[person_id] = {
             "intox": person["intox"],
+            "pending": person["pending"],
             "stage": intox_stage(person["intox"]),
-            "decay": round(decay, 2),
+            "absorbed": round(absorbed_total, 2),
+            "decay": round(decay_total, 2),
+            "delta": round(delta, 2),
+            "trend": "rising" if delta > 0.05 else "falling" if delta < -0.05 else "steady",
         }
     _save(state)
     return {"turn": state["turn"], "people": people_result}
 
 
 def conversation_turn(person_id: str = "owner") -> Dict[str, Any]:
-    """离店后每轮调用一次；规则书决定AI如何把阶段演成语言与动作。"""
+    """离店后每轮调用一次，返回不可跳过的身体、认知与表达约束。"""
     result = advance_turn(1, [person_id])
-    return result["people"].get(
+    effect = result["people"].get(
         _safe_id(person_id),
-        {"intox": 0.0, "stage": "清醒", "decay": 0.0},
+        {
+            "intox": 0.0,
+            "pending": 0.0,
+            "stage": "清醒",
+            "decay": 0.0,
+            "delta": 0.0,
+            "trend": "steady",
+        },
     )
+    stage = effect["stage"]
+    constraints = {
+        "清醒": (
+            "残余热意或口干正在退去",
+            "思路稳定",
+            "接近平常表达，但保持与上一轮的连续性",
+        ),
+        "暖意": (
+            "面部或胸口发热，动作稍放松",
+            "逻辑完整，自我修饰略微降低",
+            "语气更松、更暖或更坦率，不能装作毫无变化",
+        ),
+        "微醺": (
+            "重心、指尖或反应速度出现可见偏差",
+            "判断仍在，但更容易漏掉一步或被情绪牵动",
+            "至少表现停顿、改口、重复、动作偏差或情绪松动中的一项",
+        ),
+        "醉酒": (
+            "协调与胃部反应明显受影响",
+            "注意力变窄，可能误判或忘记刚说过的细节",
+            "至少表现语言节奏、重复/改口、动作偏差、情绪或旧事碎片中的两项",
+        ),
+        "重醉": (
+            "存在恶心、失衡或安全风险",
+            "不再适合继续做复杂决定",
+            "停止饮酒，优先补水、食物、休息与安全照顾",
+        ),
+    }[stage]
+    if stage == "清醒" and effect["trend"] == "rising":
+        constraints = (
+            "酒意仍在吸收，热感正在追上来，不能当作已经醒酒",
+            "思路稳定，但身体状态尚未到峰值",
+            "表达基本清楚，同时自然表现逐渐上来的热意或迟缓",
+        )
+    elif effect["trend"] == "rising":
+        constraints = (
+            "酒意仍在吸收，状态尚未到峰值；" + constraints[0],
+            constraints[1],
+            constraints[2],
+        )
+    effect.update(
+        {
+            "body": constraints[0],
+            "cognition": constraints[1],
+            "expression": constraints[2],
+            "must_act": float(effect["intox"]) >= 3 or float(effect["pending"]) > 0,
+            "hard_limit": (
+                "下一次实际回复必须自然体现本轮状态；醉酒不是吐真剂，"
+                "不能只报告数值，也不能突然恢复正常。"
+            ),
+        }
+    )
+    return effect
 
 
 def roll_event(

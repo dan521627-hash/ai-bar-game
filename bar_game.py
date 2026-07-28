@@ -1837,6 +1837,7 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "last_conflict_visit": -99,
         "active_guests": [],
         "session": _empty_session(),
+        "last_session": None,
         "memories": [],
         "body": _body_default(),
         "post_bar": False,
@@ -1886,6 +1887,7 @@ def _load() -> Dict[str, Any]:
     state.setdefault("interaction", None)
     state.setdefault("last_conflict_visit", -99)
     state.setdefault("session", _empty_session())
+    state.setdefault("last_session", None)
     state["session"].setdefault("reviews", [])
     state["session"].setdefault("interactions", [])
     state["session"].setdefault("conflicts", 0)
@@ -7195,14 +7197,19 @@ def _cmd_upgrade(state: Dict[str, Any], args: List[str]) -> str:
 
 def _cmd_report(state: Dict[str, Any], args: List[str]) -> str:
     del args
-    session = state["session"]
+    using_last = bool(
+        state.get("phase") == "closed"
+        and state.get("last_session")
+        and not state["session"].get("opening_time")
+    )
+    session = state["last_session"] if using_last else state["session"]
     guest_names = [
         state["records"][guest_id]["card"]["name"]
         for guest_id in session["guests"]
         if guest_id in state["records"]
     ]
     lines = [
-        "【本次经营简报】",
+        "【上次经营简报】" if using_last else "【本次经营简报】",
         "营业时段：%s季·%s｜天气：%s｜当季主推%s"
         % (
             SEASONS.get(
@@ -7351,6 +7358,9 @@ def _cmd_leave(state: Dict[str, Any], args: List[str]) -> str:
     state["vendor"] = None
     state["post_bar"] = _intox(state) >= 3 or state["body"]["pending"] > 0
     state["post_bar_turns"] = 0
+    state["last_session"] = json.loads(
+        json.dumps(state["session"], ensure_ascii=False)
+    )
     state["session"] = _empty_session()
     _refresh_market(state, starter=False)
     if state["post_bar"]:
@@ -7469,16 +7479,48 @@ def _run_one(state: Dict[str, Any], command: str) -> str:
     return "不认识指令 %r。用 help 查看。" % parts[0]
 
 
+def _split_command_segments(command: str) -> List[str]:
+    """按分号或换行拆批量指令，但保留引号内部的标点。"""
+    segments: List[str] = []
+    buffer: List[str] = []
+    quote: Optional[str] = None
+    escaped = False
+    for character in command:
+        if escaped:
+            buffer.append(character)
+            escaped = False
+            continue
+        if character == "\\":
+            buffer.append(character)
+            escaped = True
+            continue
+        if quote:
+            buffer.append(character)
+            if character == quote:
+                quote = None
+            continue
+        if character in ('"', "'"):
+            quote = character
+            buffer.append(character)
+            continue
+        if character in (";", "\n"):
+            segment = "".join(buffer).strip()
+            if segment:
+                segments.append(segment)
+            buffer = []
+            continue
+        buffer.append(character)
+    segment = "".join(buffer).strip()
+    if segment:
+        segments.append(segment)
+    return segments
+
+
 def cmd(command: str) -> str:
     """执行一条或一批内部指令。用户无需直接学习这些指令。"""
     if not isinstance(command, str):
         return "指令必须是字符串。"
-    segments = [
-        part.strip()
-        for line in command.splitlines()
-        for part in line.split(";")
-        if part.strip()
-    ]
+    segments = _split_command_segments(command)
     if not segments:
         return "空指令。"
     if len(segments) > 8:

@@ -8,6 +8,13 @@ import bar_game
 
 
 class SetupAndShopTests(unittest.TestCase):
+    def test_batch_separator_ignores_semicolon_inside_quotes(self):
+        command = 'talk guest "first clause; second clause"; status'
+        self.assertEqual(
+            bar_game._split_command_segments(command),
+            ['talk guest "first clause; second clause"', "status"],
+        )
+
     def test_setup_accepts_space_separated_likes(self):
         state = bar_game._default_state(7)
         result = bar_game._cmd_setup(
@@ -45,6 +52,22 @@ class SetupAndShopTests(unittest.TestCase):
         result = bar_game._cmd_buy(state, ["1"])
         self.assertIn("购入", result)
         self.assertTrue(state["inventory"])
+
+    def test_closed_report_uses_the_last_completed_session(self):
+        state = bar_game._default_state(19)
+        state["phase"] = "open"
+        state["bar_name"] = "测试酒馆"
+        state["session"]["opening_time"] = "深夜23:00"
+        state["session"]["weather"] = "雨"
+        state["session"]["revenue"] = 80
+        state["session"]["spend"] = 260
+        state["session"]["owner_drinks"] = ["测试酒"]
+        result = bar_game._cmd_leave(state, [])
+        self.assertIn("固定营业成本", result)
+        report = bar_game._cmd_report(state, [])
+        self.assertIn("【上次经营简报】", report)
+        self.assertIn("收入80点", report)
+        self.assertIn("我喝过：测试酒", report)
 
 
 class InteractionTests(unittest.TestCase):
@@ -271,6 +294,7 @@ class DynamicGuestTests(unittest.TestCase):
             "purchase",
             "define_recipe",
             "serve",
+            "quote_decision",
             "owner_drink",
             "take_loan",
             "repay_loan",
@@ -309,16 +333,61 @@ class DynamicGuestTests(unittest.TestCase):
             before = module.summary()["cash"]
             served = module.serve("guest", "test", tip=5)
             self.assertEqual(served["received"], 73)
-            self.assertEqual(module.summary()["cash"], before + 73)
+            self.assertEqual(served["service_cost"], 4)
+            self.assertEqual(module.summary()["cash"], before + 69)
             self.assertGreater(served["intox"]["intox"], 0)
+            self.assertGreater(served["intox"]["pending"], 0)
             owner = module.owner_drink("test")
             self.assertGreater(owner["inventory_loss"], 0)
+            before_turn = owner["intox"]["intox"]
+            after_turn = module.conversation_turn("owner")
+            self.assertGreater(after_turn["intox"], before_turn)
+            self.assertIn("body", after_turn)
+            self.assertIn("cognition", after_turn)
+            self.assertIn("expression", after_turn)
+            self.assertTrue(after_turn["must_act"])
+            self.assertEqual(after_turn["trend"], "rising")
+            self.assertIn("仍在吸收", after_turn["body"])
             archive = module.export_archive()
             link = module.viewer_link({"bar": "测试酒馆", "guests": []})
             self.assertIn("/#bar=", link)
             module.spend(50, "测试")
             restored = module.restore_archive(archive)
-            self.assertEqual(restored["cash"], before + 70)
+            self.assertEqual(restored["cash"], before + 66)
+
+    def test_lite_quote_decision_handles_price_without_permanent_refusal(self):
+        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        spec = importlib.util.spec_from_file_location("lite_quote_test", launcher_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with TemporaryDirectory() as directory:
+            module.SAVE_PATH = Path(directory) / "lite.json"
+            module.new_game(31, cash=500)
+            module.define_product("gin", "金酒", "gin", 700, 40, 140)
+            module.purchase("gin")
+            module.define_recipe("house", "店酒", {"gin": 40}, 80, 90)
+            first = module.quote_decision(
+                "guest",
+                "house",
+                budget_remaining=40,
+                willingness=0.7,
+            )
+            self.assertIn(
+                first["decision"],
+                {"haggle", "switch_cheaper", "walk_out"},
+            )
+            state = module._load()
+            state["recipes"]["house"]["price"] = 36
+            module._save(state)
+            second = module.quote_decision(
+                "guest",
+                "house",
+                budget_remaining=40,
+                willingness=0.9,
+                explained=True,
+                attempt=2,
+            )
+            self.assertEqual(second["decision"], "accept")
 
     def test_lite_accepts_products_from_any_world_or_dimension(self):
         launcher_path = Path(__file__).with_name("bar_game_lite.py")
