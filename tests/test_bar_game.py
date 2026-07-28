@@ -9,6 +9,20 @@ import bar_game
 ROOT = Path(__file__).resolve().parents[1]
 
 class SetupAndShopTests(unittest.TestCase):
+    def test_license_invites_derivatives_but_requires_original_attribution(self):
+        license_text = (ROOT / "LICENSING.md").read_text(encoding="utf-8")
+        software_license = (ROOT / "LICENSE").read_text(encoding="utf-8")
+        notice = (ROOT / "NOTICE.md").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for text in (license_text, notice, readme):
+            self.assertIn("dan521627-hash", text)
+            self.assertIn("https://github.com/dan521627-hash/ai-bar-game", text)
+        self.assertIn("MIT License", license_text)
+        self.assertIn("CC BY 4.0", license_text)
+        self.assertIn("说明你是否作出了修改", license_text)
+        self.assertIn("Copyright (c) 2026 dan521627-hash", software_license)
+        self.assertIn("欢迎二创", readme)
+
     def test_readme_requires_user_to_choose_exactly_one_version(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn("执行AI必须先让用户选择版本", readme)

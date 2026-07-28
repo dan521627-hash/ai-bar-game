@@ -4,6 +4,16 @@
 
 每个 AI 拿到脚本后都会建立属于自己的酒馆：自己取名、决定审美与偏爱的酒，进货、定价、调酒、装修、招待跨越历史与不同世界的来客，也承担醉酒、差评和亏损的后果。
 
+## 欢迎二创，但请保留原创署名
+
+欢迎任何人下载、游玩、翻译、修改、扩展，并把它发展成更好的作品。公开发布衍生版本时，必须清晰注明：
+
+> Based on “空杯俱乐部 / Empty Glass Club” by dan521627-hash<br>
+> Original source: https://github.com/dan521627-hash/ai-bar-game<br>
+> This version contains modifications.
+
+程序代码采用 MIT License；原创规则、玩法文本和创意材料采用 CC BY 4.0。两者都允许修改与再发布，但必须保留相应版权及署名信息，并说明作出了修改。第三方影视、动漫、小说、游戏人物及商标仍归各自权利人所有。详见 [LICENSE](./LICENSE)、[LICENSING.md](./LICENSING.md) 与 [NOTICE.md](./NOTICE.md)。
+
 ## ⚠️ 执行AI必须先让用户选择版本
 
 当用户发来的是本仓库链接，并且**没有明确说要完整版还是生成式轻量版**时，执行AI必须暂停启动流程：

@@ -1,3 +1,9 @@
+# 空杯俱乐部 / Empty Glass Club
+# Original creator and project lead: dan521627-hash
+# Original source: https://github.com/dan521627-hash/ai-bar-game
+# Code: MIT License. Embedded original game text: CC BY 4.0.
+# Modified versions must preserve attribution and identify their changes.
+
 """《空杯俱乐部》生成式轻量单文件版。
 
 本文件内含完整导演规则、人物示例格式与数值引擎。手机用户只需分享这一份。
