@@ -1,5 +1,7 @@
 import unittest
 from collections import Counter
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import bar_game
 
@@ -91,6 +93,17 @@ class WorldBreadthTests(unittest.TestCase):
         names = {card["name"] for card in bar_game.BUILTIN_GUESTS}
         for name in ("成年后的漩涡鸣人", "成年后的日向雏田", "宇智波斑", "长门"):
             self.assertIn(name, names)
+        for name in (
+            "张楚岚",
+            "冯宝宝",
+            "王也",
+            "伍六七",
+            "坂田银时",
+            "芙莉莲",
+            "成年后的魏无羡",
+            "成年后的郭靖",
+        ):
+            self.assertIn(name, names)
         for upgrade_id in (
             "translator",
             "guestbook",
@@ -136,6 +149,69 @@ class WorldBreadthTests(unittest.TestCase):
         self.assertEqual(snapshot["owner_self_servings"], 2)
         self.assertEqual(snapshot["owner_self_loss"], 16)
         self.assertTrue(snapshot["owner_body"])
+
+
+class NpcIntoxicationTests(unittest.TestCase):
+    def test_npc_intoxication_has_distinct_stages(self):
+        self.assertEqual(bar_game._npc_intox_stage(0), ("清醒", 0))
+        self.assertEqual(bar_game._npc_intox_stage(22), ("微醺", 2))
+        self.assertEqual(bar_game._npc_intox_stage(42), ("醉酒", 3))
+        self.assertEqual(bar_game._npc_intox_stage(64), ("重醉", 4))
+
+    def test_drunk_directive_requires_visible_character_specific_changes(self):
+        state = bar_game._default_state(73)
+        card = {
+            "id": "quiet_test",
+            "name": "沉默客",
+            "origin": "测试世界",
+            "temperament": "寡言、克制、警觉",
+            "ethos": "memory",
+        }
+        active = {"npc_drunk": 48.0}
+        directive = bar_game._npc_intox_directive(state, card, active)
+        self.assertIn("醉酒（48.0/100）", directive)
+        self.assertIn("克制失守型", directive)
+        self.assertIn("至少落实两项变化", directive)
+        self.assertIn("不得原样念给用户", directive)
+
+
+class DynamicGuestTests(unittest.TestCase):
+    def test_ai_guest_is_saved_once_and_reused_as_a_returning_candidate(self):
+        with TemporaryDirectory() as directory:
+            previous_path = bar_game.SAVE_PATH
+            bar_game.SAVE_PATH = Path(directory) / "bar_save.json"
+            try:
+                bar_game.new_game(808)
+                card = {
+                    "name": "测试星际旅人",
+                    "origin": "第九卫星·外星来客",
+                    "adult": True,
+                    "temperament": "谨慎、好奇，不把沉默误解为敌意",
+                    "ethos": "理解陌生文明",
+                    "canon_anchor": "成年外交员；通过气味记忆航线，不饮用会腐蚀硅基组织的溶剂。",
+                }
+                first = bar_game.register_guest(card)
+                second = bar_game.register_guest(card)
+                self.assertIn("已加入本酒馆", first)
+                self.assertIn("没有新建重复卡", second)
+                state = bar_game._load()
+                self.assertEqual(len(state["custom_guests"]), 1)
+                self.assertTrue(state["custom_guests"][0]["created_by_ai"])
+            finally:
+                bar_game.SAVE_PATH = previous_path
+
+    def test_guest_creation_prompt_describes_an_unbounded_world(self):
+        with TemporaryDirectory() as directory:
+            previous_path = bar_game.SAVE_PATH
+            bar_game.SAVE_PATH = Path(directory) / "bar_save.json"
+            try:
+                bar_game.new_game(809)
+                prompt = bar_game.guest_creation_prompt()
+                self.assertIn("范围没有世界、物种、维度或媒介限制", prompt)
+                self.assertIn("register_guest", prompt)
+                self.assertIn("检索现有图鉴", prompt)
+            finally:
+                bar_game.SAVE_PATH = previous_path
 
 
 if __name__ == "__main__":
