@@ -576,8 +576,13 @@ class DynamicGuestTests(unittest.TestCase):
                 set(module.GUEST_DOMAINS) | {"dream_archaeology"},
             )
             self.assertEqual(len(domain_ids), len(set(domain_ids)))
-            self.assertIn("history_reality", domain_ids)
+            self.assertIn("history", domain_ids)
+            self.assertIn("reality", domain_ids)
             self.assertIn("literature", domain_ids)
+            self.assertIn("animation_comics_2d", domain_ids)
+            self.assertIn("three_dimensional_worlds", domain_ids)
+            self.assertIn("four_higher_dimensional", domain_ids)
+            self.assertIn("extraterrestrial", domain_ids)
             for item in draws:
                 self.assertEqual(item["source"], "independent_shuffle_bag")
                 self.assertNotIn("选择熟悉人物", item["director_rule"])
@@ -585,7 +590,7 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertIn("中国", myth_label)
             self.assertIn("日本", myth_label)
             self.assertIn("西游记", myth_label)
-            history_label = module.GUEST_DOMAINS["history_reality"]
+            history_label = module.GUEST_DOMAINS["history"]
             self.assertIn("中国上下五千年", history_label)
             self.assertIn("中外帝王", history_label)
             self.assertIn("同一国家、时代、文化或作品系列", draws[0]["director_rule"])
