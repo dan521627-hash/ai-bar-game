@@ -6,11 +6,12 @@ from tempfile import TemporaryDirectory
 
 import bar_game
 
+ROOT = Path(__file__).resolve().parents[1]
 
 class SetupAndShopTests(unittest.TestCase):
-    def test_readme_requires_owner_to_choose_exactly_one_version(self):
-        readme = Path(__file__).with_name("README.md").read_text(encoding="utf-8")
-        self.assertIn("执行AI必须先让主人选择版本", readme)
+    def test_readme_requires_user_to_choose_exactly_one_version(self):
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn("执行AI必须先让用户选择版本", readme)
         self.assertIn("你想选择完整版，还是生成式轻量版？", readme)
         self.assertIn("禁止同时读取两版", readme)
         self.assertIn("已经明确指定版本", readme)
@@ -279,7 +280,7 @@ class DynamicGuestTests(unittest.TestCase):
                 bar_game.SAVE_PATH = previous_path
 
     def test_lite_version_is_a_thin_offline_numeric_layer(self):
-        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        launcher_path = ROOT / "bar_game_lite.py"
         spec = importlib.util.spec_from_file_location("lite_import_test", launcher_path)
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
@@ -314,7 +315,7 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertTrue(callable(getattr(module, name, None)), name)
 
     def test_lite_numeric_flow_and_archive(self):
-        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        launcher_path = ROOT / "bar_game_lite.py"
         spec = importlib.util.spec_from_file_location("lite_numeric_test", launcher_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -380,7 +381,7 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertEqual(restored["cash"], archived_cash)
 
     def test_lite_quote_decision_handles_price_without_permanent_refusal(self):
-        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        launcher_path = ROOT / "bar_game_lite.py"
         spec = importlib.util.spec_from_file_location("lite_quote_test", launcher_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -414,7 +415,7 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertEqual(second["decision"], "accept")
 
     def test_lite_committed_order_does_not_randomly_reverse_itself(self):
-        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        launcher_path = ROOT / "bar_game_lite.py"
         spec = importlib.util.spec_from_file_location("lite_committed_test", launcher_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -435,7 +436,7 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertEqual(result["accept_chance"], 1.0)
 
     def test_lite_accepts_products_from_any_world_or_dimension(self):
-        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        launcher_path = ROOT / "bar_game_lite.py"
         spec = importlib.util.spec_from_file_location("lite_open_world_test", launcher_path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
