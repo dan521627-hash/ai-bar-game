@@ -594,6 +594,23 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertIn("中国上下五千年", history_label)
             self.assertIn("中外帝王", history_label)
             self.assertIn("同一国家、时代、文化或作品系列", draws[0]["director_rule"])
+            asset_draws = [
+                module.draw_creation_direction("asset")
+                for _ in range(len(module.CREATIVE_DIRECTIONS) + 1)
+            ]
+            self.assertEqual(
+                set(item["direction_id"] for item in asset_draws),
+                set(module.CREATIVE_DIRECTIONS) | {"dream_archaeology"},
+            )
+            self.assertTrue(
+                all(item["purpose"] == "asset" for item in asset_draws)
+            )
+            shop_draw = module.draw_creation_direction("shop")
+            upgrade_draw = module.draw_creation_direction("upgrade")
+            self.assertEqual(shop_draw["purpose_label"], "常驻商店、随机游商与商品批次")
+            self.assertEqual(upgrade_draw["purpose_label"], "酒馆空间、设施、功能与升级方式")
+            self.assertIn("允许两个以上方向混搭", asset_draws[0]["director_rule"])
+            self.assertIn("creative_direction_history", module.summary())
 
     def test_interaction_window_is_mandatory_in_both_editions_and_readme(self):
         full_text = (ROOT / "bar_game.py").read_text(encoding="utf-8")
@@ -608,6 +625,9 @@ class DynamicGuestTests(unittest.TestCase):
         self.assertIn("正常长度的营业至少应实际", lite_text)
         self.assertIn("分类字段只用于记账，不能成为想象边界", full_text)
         self.assertIn("只是数值档案的记账分类，不是内容白名单", lite_text)
+        self.assertIn("全局创意方向盘：不只给人物使用", lite_text)
+        self.assertIn('draw_creation_direction("shop")', lite_text)
+        self.assertIn("这些方向不只用于人物", readme)
         self.assertIn("酒馆可以开在现实街区", readme)
 
     def test_full_arrival_and_service_emit_internal_pacing_brakes(self):

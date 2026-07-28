@@ -44,6 +44,29 @@ AI负责所有“活的部分”：酒馆名称、空间、商店、酒款、装
 
 天马行空不等于每次都使用同一种“赛博霓虹”“神秘魔法”或“宇宙星空”模板。AI应根据自己的偏好、现有酒馆历史和随机灵感创造具体且彼此不同的东西；现实物件、幻想物件和原创物件都可以同时存在。
 
+### 全局创意方向盘：不只给人物使用
+
+历史、现实、文学、神话、影视、动漫漫画/二次元、游戏、三维异世界、四维及更高维、外星文明、原创世界和非人/概念存在，是整间酒馆共用的起始方向，不只是来客分类。AI创造以下任何重要新内容前，都可以调用：
+
+```python
+draw_creation_direction("guest|drink|shop|asset|upgrade|event")
+```
+
+- `guest`：来客、同伴和小队；
+- `drink`：现实酒、幻想酒、基酒、饮料与原创特调；
+- `shop`：常驻商店、随机游商、商品批次与供货方式；
+- `asset`：软装、硬装、设备、杯具、奇物与装饰；
+- `upgrade`：场所、空间、功能、设施与升级方式；
+- `event`：营业事件、物品故事与跨世界影响。
+
+每一种用途拥有独立洗牌袋，所以今晚抽到游戏人物，不代表下一件装修也必须来自游戏；也允许把两个以上抽中过的方向自然混搭。默认方向只是帮助AI跳出思维惯性的路标，不是白名单。需要增加新的起始方向时调用：
+
+```python
+register_creation_direction("新的方向ID", "开放且具体的方向说明")
+```
+
+新方向会同时服务人物、酒、商店、装修、升级和事件。无论创造什么，都不得长期锁死同一国家、时代、文化、作品系列或“赛博/魔法/星空”审美模板。
+
 ## 2. 不可破坏的边界
 
 - AI不能凭空修改资金、库存、ABV、醉度、评分或声誉。
@@ -194,6 +217,7 @@ register_person("guest_id", tolerance=55, absorption=0.95)
 ## 7. 商店、游商与商品
 
 AI自行创造商店内容，不需要内置目录。
+创建新一批商店货物、游商货物、重要装修或升级方案前，先分别调用`draw_creation_direction("shop")`、`draw_creation_direction("asset")`或`draw_creation_direction("upgrade")`。方向可以来自现实，也可以来自历史、文学、神话、影视、动漫、游戏、三维/四维/更高维、外星文明、概念世界或原创宇宙；它决定灵感从哪里起步，不限制最终答案。
 
 每件可饮用商品先调用：
 
@@ -441,7 +465,7 @@ AI还应另写一份简短叙事记忆：
 
 ## 16. 装修、升级与物品的四阶段故事
 
-常驻商店一直存在，游商只随机出现。AI可以创造现实、二维、三维、四维、神话、游戏、外星或原创世界中的酒、软装、硬装、设备和升级。
+常驻商店一直存在，游商只随机出现。AI可以创造现实、二维、三维、四维、神话、游戏、外星或原创世界中的酒、软装、硬装、设备和升级。重要新品与新升级应使用全局创意方向盘抽取起点，不能因为最近来了某类客人就把整家店永久锁成同一种题材。
 
 每件重要物品至少记录名称、来源、状态、稀有度、价格、购买时间、叙事来历与可触发效果。首次购买必须调用`buy_asset()`，继续改造必须调用`upgrade_asset()`；两者会扣款并持久保存，不能再对同一笔购买调用`spend()`重复扣钱。效果可以影响氛围、服务、关系、误会、回头客、音乐、记忆、空间或事件概率，但只能有限修正，不能无限赚钱或强迫人物行动。
 
@@ -679,7 +703,7 @@ SAVE_PATH = Path(__file__).with_name("bar_lite_save.json")
 ARCHIVE_BEGIN = "【空杯轻量数值档案｜V1】"
 ARCHIVE_END = "【数值档案结束】"
 VIEWER_BASE_URL = "https://empty-glass-club-viewer.dan521627.chatgpt.site"
-GUEST_DOMAINS = {
+CREATIVE_DIRECTIONS = {
     "history": (
         "中国上下五千年及世界所有地区、文明与时代的历史人物；包括但不限于"
         "中外帝王、政治家、将领、思想家、学者、科学家、艺术家、工匠、"
@@ -714,6 +738,16 @@ GUEST_DOMAINS = {
     "nonhuman_conceptual": (
         "机器人、仿生人、怪物、巨型生命、天体意识、物件人格、概念生命及其他非人存在"
     ),
+}
+# 兼容旧存档、旧玩法说明与已经调用过来客接口的 AI。
+GUEST_DOMAINS = CREATIVE_DIRECTIONS
+CREATIVE_PURPOSES = {
+    "guest": "来客、同行者与新人物",
+    "drink": "酒、基酒、饮料、配方与原创特调",
+    "shop": "常驻商店、随机游商与商品批次",
+    "asset": "软装、硬装、设备、奇物与装饰",
+    "upgrade": "酒馆空间、设施、功能与升级方式",
+    "event": "营业事件、物品故事与跨世界影响",
 }
 
 
@@ -755,6 +789,9 @@ def _default_state(
         "guest_domain_bag": [],
         "guest_domain_history": [],
         "custom_guest_domains": {},
+        "creative_direction_bags": {},
+        "creative_direction_history": {},
+        "custom_creative_directions": {},
         "people": {
             "owner": {
                 "tolerance": _clamp(owner_tolerance, 5, 95),
@@ -807,6 +844,26 @@ def _load() -> Dict[str, Any]:
     state.setdefault("guest_domain_bag", [])
     state.setdefault("guest_domain_history", [])
     state.setdefault("custom_guest_domains", {})
+    state.setdefault("creative_direction_bags", {})
+    state.setdefault("creative_direction_history", {})
+    state.setdefault("custom_creative_directions", {})
+    # 旧版只保存来客方向；迁移后它仍是全局方向池的一部分。
+    for domain_id, label in state["custom_guest_domains"].items():
+        state["custom_creative_directions"].setdefault(domain_id, label)
+    if (
+        state["guest_domain_bag"]
+        and "guest" not in state["creative_direction_bags"]
+    ):
+        state["creative_direction_bags"]["guest"] = list(
+            state["guest_domain_bag"]
+        )
+    if (
+        state["guest_domain_history"]
+        and "guest" not in state["creative_direction_history"]
+    ):
+        state["creative_direction_history"]["guest"] = list(
+            state["guest_domain_history"]
+        )
     for person in state.get("people", {}).values():
         person.setdefault("pending", 0.0)
         person.setdefault("peak", float(person.get("intox", 0)))
@@ -831,81 +888,131 @@ def _shuffle_with_state(state: Dict[str, Any], values: List[str]) -> List[str]:
     return shuffled
 
 
-def _all_guest_domains(state: Dict[str, Any]) -> Dict[str, str]:
-    domains = dict(GUEST_DOMAINS)
+def _all_creative_directions(state: Dict[str, Any]) -> Dict[str, str]:
+    domains = dict(CREATIVE_DIRECTIONS)
     domains.update(
         {
             domain_id: str(label)
-            for domain_id, label in state.get("custom_guest_domains", {}).items()
+            for domain_id, label in state.get(
+                "custom_creative_directions", {}
+            ).items()
             if domain_id not in domains and str(label).strip()
         }
     )
     return domains
 
 
-def register_guest_domain(domain_id: str, label: str) -> Dict[str, str]:
-    """扩展来客领域；默认方向是起点，不是不可突破的白名单。"""
+def register_creation_direction(
+    direction_id: str, label: str
+) -> Dict[str, str]:
+    """扩展全局创意方向；人物、酒、商店、装修、升级与事件共同使用。"""
     state = _load()
-    domain_id = _safe_id(domain_id)
+    direction_id = _safe_id(direction_id)
     label = str(label).strip()[:240]
     if not label:
-        raise ValueError("领域说明不能为空。")
-    if domain_id in GUEST_DOMAINS:
+        raise ValueError("方向说明不能为空。")
+    if direction_id in CREATIVE_DIRECTIONS:
         raise ValueError("这是内置起始方向，不能覆盖；可以另建更具体的新方向。")
-    state.setdefault("custom_guest_domains", {})[domain_id] = label
-    if (
-        state.get("guest_domain_bag")
-        and domain_id not in state["guest_domain_bag"]
-    ):
-        state["guest_domain_bag"].append(domain_id)
-        state["guest_domain_bag"] = _shuffle_with_state(
-            state, state["guest_domain_bag"]
-        )
+    state.setdefault("custom_creative_directions", {})[direction_id] = label
+    for purpose, bag in state.setdefault(
+        "creative_direction_bags", {}
+    ).items():
+        if bag and direction_id not in bag:
+            bag.append(direction_id)
+            state["creative_direction_bags"][purpose] = _shuffle_with_state(
+                state, bag
+            )
     _save(state)
-    return {"domain_id": domain_id, "domain": label}
+    return {"direction_id": direction_id, "direction": label}
 
 
-def draw_guest_domain(forced_domain: Optional[str] = None) -> Dict[str, Any]:
-    """独立抽取下一批来客领域，阻断根据上下文连续选择同类人物。"""
+def draw_creation_direction(
+    purpose: str, forced_direction: Optional[str] = None
+) -> Dict[str, Any]:
+    """按用途独立洗牌，为所有创造层抽方向，而不仅是为人物抽方向。"""
     state = _load()
-    domains = _all_guest_domains(state)
-    if forced_domain is not None:
-        domain_id = _safe_id(forced_domain)
-        if domain_id not in domains:
+    purpose = _safe_id(purpose)
+    directions = _all_creative_directions(state)
+    if forced_direction is not None:
+        direction_id = _safe_id(forced_direction)
+        if direction_id not in directions:
             raise ValueError(
-                "未知领域ID。可用值：" + "、".join(domains)
+                "未知方向ID。可用值：" + "、".join(directions)
             )
         source = "explicit_user_theme"
     else:
+        bags = state.setdefault("creative_direction_bags", {})
+        histories = state.setdefault("creative_direction_history", {})
         bag = [
             value
-            for value in state.get("guest_domain_bag", [])
-            if value in domains
+            for value in bags.get(purpose, [])
+            if value in directions
         ]
         if not bag:
-            bag = _shuffle_with_state(state, list(domains))
+            bag = _shuffle_with_state(state, list(directions))
             last = (
-                state.get("guest_domain_history", [])[-1]
-                if state.get("guest_domain_history")
+                histories.get(purpose, [])[-1]
+                if histories.get(purpose)
                 else None
             )
             if len(bag) > 1 and bag[-1] == last:
                 bag[-1], bag[-2] = bag[-2], bag[-1]
-        domain_id = bag.pop()
-        state["guest_domain_bag"] = bag
+        direction_id = bag.pop()
+        bags[purpose] = bag
         source = "independent_shuffle_bag"
-    state.setdefault("guest_domain_history", []).append(domain_id)
-    state["guest_domain_history"] = state["guest_domain_history"][-24:]
+    history = state.setdefault("creative_direction_history", {}).setdefault(
+        purpose, []
+    )
+    history.append(direction_id)
+    state["creative_direction_history"][purpose] = history[-24:]
+    if purpose == "guest":
+        state["guest_domain_bag"] = list(
+            state["creative_direction_bags"].get("guest", [])
+        )
+        state["guest_domain_history"] = list(
+            state["creative_direction_history"].get("guest", [])
+        )
     _save(state)
     return {
-        "domain_id": domain_id,
-        "domain": domains[domain_id],
+        "purpose": purpose,
+        "purpose_label": CREATIVE_PURPOSES.get(
+            purpose, "AI自定义的创造对象"
+        ),
+        "direction_id": direction_id,
+        "direction": directions[direction_id],
         "source": source,
-        "remaining_before_refill": len(state.get("guest_domain_bag", [])),
+        "remaining_before_refill": len(
+            state.get("creative_direction_bags", {}).get(purpose, [])
+        ),
         "director_rule": (
-            "现在直接从抽中的领域选择人物。不得根据当前对话、当前在场者或所谓"
-            "“熟悉程度”改换领域；同作品同行者算同一批。默认领域只是路标，不是"
-            "白名单；无法容纳的新方向先登记再参与洗牌。领域内部也不得长期锁死"
+            "现在直接从抽中的方向创造本次对象。不得根据当前对话、已有风格或所谓"
+            "“熟悉程度”擅自改换方向。默认方向只是路标，不是白名单；无法容纳的"
+            "新方向先登记再参与洗牌。方向内部也不得长期锁死同一国家、时代、文化、"
+            "作品系列或审美模板；允许两个以上方向混搭，但必须有价格、边界与来历。"
+        ),
+    }
+
+
+def register_guest_domain(domain_id: str, label: str) -> Dict[str, str]:
+    """兼容旧调用；新增方向实际会供所有创造层共同使用。"""
+    result = register_creation_direction(domain_id, label)
+    return {
+        "domain_id": result["direction_id"],
+        "domain": result["direction"],
+    }
+
+
+def draw_guest_domain(forced_domain: Optional[str] = None) -> Dict[str, Any]:
+    """兼容旧调用；为下一批来客独立抽取全局创意方向。"""
+    result = draw_creation_direction("guest", forced_domain)
+    return {
+        **result,
+        "domain_id": result["direction_id"],
+        "domain": result["direction"],
+        "director_rule": (
+            "现在直接从抽中的方向选择人物。不得根据当前对话、当前在场者或所谓"
+            "“熟悉程度”改换方向；同作品同行者算同一批。默认方向只是路标，不是"
+            "白名单；无法容纳的新方向先登记再参与洗牌。方向内部也不得长期锁死"
             "同一国家、时代、文化或作品系列。只在演绎时约束事实准确性。"
         ),
     }
@@ -973,6 +1080,12 @@ def summary() -> Dict[str, Any]:
             for asset_id, asset in state["assets"].items()
         },
         "guest_domain_history": list(state["guest_domain_history"][-8:]),
+        "creative_direction_history": {
+            purpose: list(history[-8:])
+            for purpose, history in state.get(
+                "creative_direction_history", {}
+            ).items()
+        },
         "owner": dict(state["people"]["owner"]),
         "session": dict(state["session"]),
     }
