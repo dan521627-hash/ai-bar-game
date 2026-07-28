@@ -28,6 +28,16 @@ AI负责所有“活的部分”：酒馆名称、空间、商店、酒款、装
 
 本规则没有世界、作品、物种、时代、空间或维度白名单。AI可以为当前酒馆增加来自现实、历史、神话、二维作品、三维世界、四维空间、游戏、影视、外星文明、概念世界与原创宇宙的人物、酒、基酒类别、商店、游商、装修、设备、升级和事件。薄脚本只校验数值与库存，不得因为类别名称不在预设列表而拒绝。
 
+开放范围适用于酒馆的每一层，而不只适用于人物和酒：
+
+- 酒馆可以位于现实街区、移动载具、海底、轨道城、梦境、时间夹层、游戏地图、漫画分镜、巨型生命体内部或AI原创地点；
+- 风格可以来自任何时代、文明、作品、物种与空间规律，也可以把互不相干的元素组合成一套自洽的新审美；
+- 家具、灯光、门窗、吧台、杯具、材料、音乐系统、厨房、储藏、安保、交通方式和空间本身都可以脱离现实物理；
+- 升级可以改造容量、重力、时间流速、语言理解、记忆呈现、温度、声音、维度入口或其他原创机制，但效果必须有限、可记账且有代价；
+- `soft`、`hard`、`equipment`、`artifact`和`upgrade`只是数值档案的记账分类，不是内容白名单。
+
+天马行空不等于每次都使用同一种“赛博霓虹”“神秘魔法”或“宇宙星空”模板。AI应根据自己的偏好、现有酒馆历史和随机灵感创造具体且彼此不同的东西；现实物件、幻想物件和原创物件都可以同时存在。
+
 ## 2. 不可破坏的边界
 
 - AI不能凭空修改资金、库存、ABV、醉度、评分或声誉。
@@ -64,6 +74,17 @@ AI自主经营不等于一口气演完整桌。用户没有明确要求快进时
 停下来不等于弹菜单。不要每轮问“你要选A/B/C吗”，只需自然结束在人物的一句话、一个动作或尚未处理的现场，让用户可以插话。用户没有参与并在下一轮表示继续时，AI再自主推进。
 
 只有用户明确说“你自己经营”“快进”“不用等我”或“直接总结营业”等，才可批量处理普通后台来客；重要冲突、用户被点名和老板明显醉态仍需转达。
+
+### 持续在场制：酒吧不是一对一服务窗口
+
+酒馆必须有座位、容量与当前在场名单。来客拿到酒以后会找位置坐下，不得因为一杯酒的反馈写完就自动结账消失。
+
+- 每位来客分别处于刚进门、看酒单、等酒、饮用、独坐、聊天、续杯、醉酒、休息或准备离店等状态。
+- 新客进门时旧客通常仍在；只有人物自己喝完、结账或确实达到离店条件时，才移出在场名单。
+- AI老板可以从满屋客人中挑少数几位重点聊天，也可能被某桌叫住。聚焦一段谈话时，其他桌仍会继续喝酒、交谈、点单和变化。
+- 一条回复的互动窗口只限制当前聚焦事件，不能冻结整间酒吧。每轮可以重点演一处，同时用一两句转达其他座位的自然变化。
+- 用户可以询问谁在店里，再决定聊天、旁听或共饮；但酒馆默认仍由AI老板自主经营，不因用户参与而自动变成共同经营。
+- 深聊两到四轮后，至少检查一次全场状态，让时间、新到店者、其他桌订单或离店自然推进。
 
 ## 4. 来客创建
 
@@ -116,6 +137,8 @@ register_person("guest_id", tolerance=55, absorption=0.95)
 
 多人同场不等于必须互动。看对眼可以聊，不投缘可以礼貌点头后各自喝；只有关系与现场自然支持时才展开多人对话。
 
+结伴来店不是“允许但永远不用”的装饰规则。一次正常长度的营业至少应实际安排一组原本就认识的成年朋友、同事、搭档、伴侣或小队到店；只有明确的清冷短场才可例外。同行者可以同时来，也可以有人先到、同伴稍后来找他。不得把每次到店都写成单独一人。
+
 ## 6. 点单行为
 
 大多数来客会直接点单，不要每个人都让老板猜酒。
@@ -165,7 +188,22 @@ purchase("product_id", bottles=2)
 - 游商：随机出现，可能更便宜或带来罕见物品；
 - 非酒精饮料也应登记，ABV写0。
 
-AI可以创造装修与升级，但必须调用`spend()`真实扣款。效果只能改变后续叙事或作为评分/事件概率的小幅修正，不能无限加成。
+AI可以创造装修、设备与升级，但不能只在对白里说“买了”。首次购买必须调用：
+
+```python
+buy_asset(
+    "asset_id", "显示名称", "soft|hard|equipment|artifact|upgrade",
+    cost=180, origin="来历", effect="有限且明确的作用"
+)
+```
+
+已有物品继续升级时调用：
+
+```python
+upgrade_asset("asset_id", cost=260, effect="本级新增或强化的有限作用")
+```
+
+两者都会真实扣款并把所有权、等级、累计投入、来历和效果写进数值档案。普通经营支出才使用`spend()`，不得对同一次购买重复扣款。效果只能改变后续叙事或作为评分、容量、事件概率的小幅修正，不能无限加成。
 
 ## 8. 调酒与ABV
 
@@ -371,7 +409,7 @@ AI还应另写一份简短叙事记忆：
 
 常驻商店一直存在，游商只随机出现。AI可以创造现实、二维、三维、四维、神话、游戏、外星或原创世界中的酒、软装、硬装、设备和升级。
 
-每件重要物品至少记录名称、来源、状态、稀有度、价格、购买时间、叙事来历与可触发效果。购买必须调用`spend()`扣款。效果可以影响氛围、服务、关系、误会、回头客、音乐、记忆、空间或事件概率，但只能有限修正，不能无限赚钱或强迫人物行动。
+每件重要物品至少记录名称、来源、状态、稀有度、价格、购买时间、叙事来历与可触发效果。首次购买必须调用`buy_asset()`，继续改造必须调用`upgrade_asset()`；两者会扣款并持久保存，不能再对同一笔购买调用`spend()`重复扣钱。效果可以影响氛围、服务、关系、误会、回头客、音乐、记忆、空间或事件概率，但只能有限修正，不能无限赚钱或强迫人物行动。
 
 重要装修与升级可以经历四阶段：
 
@@ -381,6 +419,7 @@ AI还应另写一份简短叙事记忆：
 4. **沉淀**：事件后留下永久但有限的变化、损耗、维护需求或新故事钩子。
 
 同一物品不能每晚重复触发；要记录冷却与已发生结果。普通装修也可以只提供舒适度，不必每件都制造大事件。
+每次阶段推进还应调用`record_asset_story("asset_id", 阶段, "本次变化")`写进数值档案，避免换窗口后把物品故事重置。
 
 ## 17. 原创调酒的完整档案
 
@@ -417,7 +456,7 @@ AI默认自己经营，不要把每个决定都抛给用户。
 
 用户主动参与时，欢迎其加入；用户没有参与时，AI继续把酒馆经营下去。
 
-但是“继续经营”必须遵守强制互动窗口：默认一条可见回复只推进一个前台关键节点，自然停顿而不弹选择菜单；不能把同一桌从进门到离店一口气演完。只有用户明确要求快进或总结时，才可批量略过普通后台过程。"""
+但是“继续经营”必须同时遵守强制互动窗口与持续在场制：默认一条可见回复只推进一个聚焦事件，自然停顿而不弹选择菜单；不能把同一桌从进门到离店一口气演完，也不能因为深聊一人就冻结或清空整间酒吧。正常长度的营业必须实际使用结伴来店，而不是只承认它理论上存在。只有用户明确要求快进或总结时，才可批量略过普通后台过程。"""
 EMBEDDED_EXAMPLE_CARDS = r"""# 生成式轻量版：人物卡示例
 
 这些卡只展示格式。AI不必优先选择他们，也不要复制示例台词。
@@ -640,6 +679,7 @@ def _default_state(
         "reputation": 50,
         "products": {},
         "recipes": {},
+        "assets": {},
         "people": {
             "owner": {
                 "tolerance": _clamp(owner_tolerance, 5, 95),
@@ -688,6 +728,7 @@ def _load() -> Dict[str, Any]:
         raise ValueError("轻量数值存档版本不兼容。")
     state.setdefault("debt", 0)
     state.setdefault("debt_due", 0)
+    state.setdefault("assets", {})
     for person in state.get("people", {}).values():
         person.setdefault("pending", 0.0)
         person.setdefault("peak", float(person.get("intox", 0)))
@@ -752,6 +793,16 @@ def summary() -> Dict[str, Any]:
         "shift": state["shift"],
         "products": len(state["products"]),
         "recipes": len(state["recipes"]),
+        "assets": {
+            asset_id: {
+                "name": asset["name"],
+                "category": asset["category"],
+                "level": asset["level"],
+                "story_stage": asset.get("story_stage", 0),
+                "total_spent": asset["total_spent"],
+            }
+            for asset_id, asset in state["assets"].items()
+        },
         "owner": dict(state["people"]["owner"]),
         "session": dict(state["session"]),
     }
@@ -1381,6 +1432,95 @@ def spend(amount: int, reason: str) -> Dict[str, Any]:
     result = _money(state, -amount, reason, "spend")
     _save(state)
     return result
+
+
+def buy_asset(
+    asset_id: str,
+    name: str,
+    category: str,
+    cost: int,
+    origin: str = "",
+    effect: str = "",
+) -> Dict[str, Any]:
+    """购买并持久登记软装、硬装、设备、奇物或酒馆升级。"""
+    state = _load()
+    asset_id = _safe_id(asset_id)
+    category = str(category).strip().lower()
+    allowed = {"soft", "hard", "equipment", "artifact", "upgrade"}
+    if category not in allowed:
+        raise ValueError("category必须是soft、hard、equipment、artifact或upgrade。")
+    if asset_id in state["assets"]:
+        raise ValueError("这件物品已经拥有；继续改造请使用upgrade_asset()。")
+    cost = int(_clamp(cost, 1, 1_000_000))
+    if int(state["cash"]) < cost:
+        raise ValueError("资金不足，不能只在叙事里假装买下。")
+    _money(state, -cost, "购买酒馆物品：" + str(name)[:80], "asset")
+    state["assets"][asset_id] = {
+        "id": asset_id,
+        "name": str(name).strip()[:80] or asset_id,
+        "category": category,
+        "origin": str(origin).strip()[:300],
+        "effects": [str(effect).strip()[:240]] if str(effect).strip() else [],
+        "level": 1,
+        "total_spent": cost,
+        "story_stage": 0,
+        "story_notes": [],
+    }
+    _save(state)
+    return dict(state["assets"][asset_id])
+
+
+def upgrade_asset(
+    asset_id: str,
+    cost: int,
+    effect: str = "",
+    max_level: int = 4,
+) -> Dict[str, Any]:
+    """对已拥有物品或设施继续投入，真实扣款并保存等级。"""
+    state = _load()
+    asset_id = _safe_id(asset_id)
+    if asset_id not in state["assets"]:
+        raise KeyError("尚未拥有这件物品，不能凭空升级。")
+    asset = state["assets"][asset_id]
+    max_level = int(_clamp(max_level, 1, 20))
+    if int(asset["level"]) >= max_level:
+        raise ValueError("这件物品已经达到设定的最高等级。")
+    cost = int(_clamp(cost, 1, 1_000_000))
+    if int(state["cash"]) < cost:
+        raise ValueError("资金不足，不能只在叙事里假装完成升级。")
+    _money(
+        state,
+        -cost,
+        "升级酒馆物品：%s Lv.%d"
+        % (asset["name"], int(asset["level"]) + 1),
+        "asset_upgrade",
+    )
+    asset["level"] = int(asset["level"]) + 1
+    asset["total_spent"] = int(asset["total_spent"]) + cost
+    if str(effect).strip():
+        asset.setdefault("effects", []).append(str(effect).strip()[:240])
+    _save(state)
+    return dict(asset)
+
+
+def record_asset_story(asset_id: str, stage: int, note: str) -> Dict[str, Any]:
+    """记录物品四阶段故事；只能保持当前阶段或逐级推进。"""
+    state = _load()
+    asset_id = _safe_id(asset_id)
+    if asset_id not in state["assets"]:
+        raise KeyError("尚未拥有这件物品。")
+    asset = state["assets"][asset_id]
+    stage = int(stage)
+    current = int(asset.get("story_stage", 0))
+    if stage < current or stage > min(4, current + 1):
+        raise ValueError("物品故事只能保持当前阶段或向前推进一阶段。")
+    asset["story_stage"] = stage
+    asset.setdefault("story_notes", []).append(
+        {"turn": int(state["turn"]), "stage": stage, "note": str(note)[:300]}
+    )
+    asset["story_notes"] = asset["story_notes"][-20:]
+    _save(state)
+    return dict(asset)
 
 
 def earn(amount: int, reason: str) -> Dict[str, Any]:

@@ -17,6 +17,13 @@
 强制叙事节奏：用户没有明确要求快进时，一条对用户可见的回复最多推进
 一个前台关键节点。AI不得把同一桌的进门、点单、饮用、评价、结账与离店
 一口气演完；应自然停在现场，让用户随时可以插话，但不要机械弹出选项菜单。
+
+酒馆采用持续在场制：客人拿到酒后会找座位坐下，喝完一杯也不会自动清场；
+新客、熟人结伴与后来加入者可以和旧客同时在场，老板从中挑几位重点交流。
+
+开放世界规则适用于一切可创造内容：人物、酒、商品、商店、游商、酒馆所在地点、
+建筑规律、整体风格、软硬装、设备、材料与升级方式都没有现实世界或维度白名单。
+分类字段只用于记账，不能成为想象边界。
 """
 
 from __future__ import annotations
@@ -1782,6 +1789,7 @@ def _empty_session() -> Dict[str, Any]:
         "highlights": [],
         "arrival_waves": 0,
         "arrival_modes": [],
+        "group_arrivals": 0,
         "season": None,
         "opening_time": None,
         "weather": None,
@@ -1905,6 +1913,7 @@ def _load() -> Dict[str, Any]:
     state["session"].setdefault("opening_time", None)
     state["session"].setdefault("weather", None)
     state["session"].setdefault("featured_drinks", [])
+    state["session"].setdefault("group_arrivals", 0)
     state.setdefault("calendar_day", max(1, int(state.get("visit", 0)) * 19 + 1))
     state.setdefault("season", "spring")
     state.setdefault("opening_time", None)
@@ -3514,8 +3523,9 @@ def _spawn_scene(
             % (lead["origin"].split("·")[0], lead["name"])
         )
     cards = _all_guest_cards(state)
-    group_chance = 0.16 + state["upgrades"].get("stage", 0) * 0.08
-    room_left = max(0, 4 - len(existing_active))
+    seat_capacity = min(10, 6 + state["upgrades"].get("stage", 0))
+    group_chance = 0.32 + state["upgrades"].get("stage", 0) * 0.06
+    room_left = max(0, seat_capacity - len(existing_active))
     chosen: List[Dict[str, Any]] = [lead]
     occupied_ids = {guest["id"] for guest in existing_active}
     available = [
@@ -3537,7 +3547,38 @@ def _spawn_scene(
         if item["id"].lower() in companion_tokens
         or item["name"].strip().lower() in companion_tokens
     ]
-    companion_arrival = bool(companion_candidates) and _rand(state) < 0.34
+    force_companion_group = (
+        int(state["session"].get("arrival_waves", 0)) >= 2
+        and int(state["session"].get("group_arrivals", 0)) == 0
+        and room_left >= 2
+    )
+    if force_companion_group and not companion_candidates:
+        eligible_groups = []
+        card_by_id = {item["id"]: item for item in cards}
+        for group in GUEST_COMPANION_GROUPS:
+            group_cards = [
+                card_by_id[guest_id]
+                for guest_id in group
+                if guest_id in card_by_id and guest_id not in occupied_ids
+            ]
+            if len(group_cards) >= 2:
+                eligible_groups.append(group_cards)
+        if eligible_groups:
+            group_cards = _choice(state, eligible_groups)
+            lead = _choice(state, group_cards)
+            chosen = [lead]
+            companion_candidates = [
+                item for item in group_cards if item["id"] != lead["id"]
+            ]
+            available = [
+                item
+                for item in cards
+                if item["id"] != lead["id"]
+                and item["id"] not in occupied_ids
+            ]
+    companion_arrival = bool(companion_candidates) and (
+        force_companion_group or _rand(state) < 0.58
+    )
     if companion_arrival:
         maximum_party = min(room_left, 4, 1 + len(companion_candidates))
         count = min(
@@ -3573,6 +3614,9 @@ def _spawn_scene(
         ) + 1
     if companion_arrival and len(chosen) > 1:
         arrival_mode = "熟人伙伴结伴到店"
+        state["session"]["group_arrivals"] = int(
+            state["session"].get("group_arrivals", 0)
+        ) + 1
     elif join_existing:
         arrival_mode = "营业中途错峰加入"
     elif len(chosen) == 2 and _rand(state) < 0.56:
@@ -3603,7 +3647,9 @@ def _spawn_scene(
         (
             "【AI内部到店节奏规则｜不得原样展示】不要把酒馆演成“来一个、喝完、清场、"
             "再来一个”的制作流水线。允许同来、错峰、后来者加入、各聊各的、自然冷场与多人对话；"
-            "根据人物关系和现场自主决定谁先开口，不强迫所有同场者互动。"
+            "客人拿到酒后会找座位坐下，不会因为这一杯结束就立刻消失。老板只把注意力移到"
+            "其中几位身上，未被聚焦的人仍在独饮、交谈、续杯或等待；根据人物关系和现场"
+            "自主决定谁先开口，不强迫所有同场者互动。"
         ),
         (
             "【强制互动窗口｜内部执行｜不得原样展示】本轮只把来客进门、第一句话与现场关系"
@@ -3638,6 +3684,13 @@ def _spawn_scene(
                 "declined_offers": [],
                 "haggles": {},
                 "deal_prices": {},
+                "dwell_turns": (
+                    5 + int(_rand(state) * 3)
+                    if night_profile["drinking"]["mode"] == "drown_sorrow"
+                    else 3 + int(_rand(state) * 4)
+                    if night_profile["drinking"]["mode"] == "linger"
+                    else 2 + int(_rand(state) * 3)
+                ),
             }
         )
         if card["id"] not in state["session"]["guests"]:
@@ -5181,7 +5234,10 @@ def _serve_guest(
     else:
         active["closed"] = True
         active["served"] = True
-        lines.append("%s今晚不再加酒，这桌可以自然收束。" % card["name"])
+        lines.append(
+            "%s今晚不再加酒，但仍可能端着杯子留在座位上聊天、旁听或休息；"
+            "只有其主动结账离开时才从在场名单移除。" % card["name"]
+        )
     lines.append(
         "【强制互动窗口｜内部执行｜不得原样展示】本轮呈现这杯酒的饮用反应、醉态和"
         "续杯意愿后停止。除非用户已经明确要求快进，否则不要在同一条可见回复中继续演完"
@@ -5817,6 +5873,14 @@ archive                              输出严格酒吧档案
 view                                 生成当前酒馆的只读网页观察链接
 
 默认由 AI 自主经营并只向用户转达少量亮点。
+开放世界不只包括人物和酒。酒馆地点、建筑规律、整体风格、商店、游商、材料、
+软硬装、家具、设备和升级方式都可以来自现实、历史、神话、二维、三维、四维、
+游戏、影视、外星文明、概念世界、未知维度或AI原创宇宙。分类只用于记账，不是
+内容白名单；也不要把“开放”固定成每次相同的赛博、魔法或星空模板。
+酒馆采用持续在场制，不是一对一服务窗口。客人拿到酒后会入座，旧客不会因为
+新客进门或一杯酒喝完就自动消失；老板可以从当前在场者中挑几位重点聊天，
+其他座位仍会继续饮用、交谈和变化。正常长度的营业必须真正出现至少一组原本
+就认识的成年朋友、同事、搭档、伴侣或小队，不能只承认结伴来店“理论上允许”。
 AI自主经营不等于一口气演完整桌。用户没有明确要求快进时，一条对用户可见的
 回复最多推进一个前台关键节点：来客进门并开口或点单；出杯后的饮用反馈；
 一轮自然对话、续杯意愿或NPC互动；结账离店或事件收束。
@@ -6122,23 +6186,68 @@ def _cmd_next(state: Dict[str, Any], args: List[str]) -> str:
         )
     if state.get("interaction") and not state["interaction"].get("resolved"):
         return _advance_interaction(state)
+
+    departed = []
+    staying = []
+    for guest in state["active_guests"]:
+        if guest.get("served") and guest.get("closed"):
+            guest["dwell_turns"] = max(
+                0, int(guest.get("dwell_turns", 2)) - 1
+            )
+            if guest["dwell_turns"] <= 0 and _rand(state) < 0.68:
+                departed.append(
+                    state["records"][guest["id"]]["card"]["name"]
+                )
+                continue
+        staying.append(guest)
+    state["active_guests"] = staying
+
     arrival_waves = int(state["session"].get("arrival_waves", 1))
+    seat_capacity = min(10, 6 + state["upgrades"].get("stage", 0))
     if (
         state["active_guests"]
-        and len(state["active_guests"]) < 4
-        and arrival_waves < 3
-        and _rand(state) < 0.48
+        and len(state["active_guests"]) < seat_capacity
+        and arrival_waves < 8
+        and (
+            len(state["active_guests"]) < 3
+            or _rand(state) < 0.68
+            or (
+                arrival_waves >= 2
+                and int(state["session"].get("group_arrivals", 0)) == 0
+            )
+        )
     ):
         trend = _body_tick(state)
+        departure_line = (
+            "离店：%s。\n\n" % "、".join(departed) if departed else ""
+        )
         return (
-            _spawn_scene(state, join_existing=True)
+            departure_line
+            + _spawn_scene(state, join_existing=True)
             + "\n\n老板状态："
             + _body_line(state, trend)
         )
-    state["active_guests"] = []
-    state["interaction"] = None
+
     trend = _body_tick(state)
-    return _spawn_scene(state) + "\n\n老板状态：" + _body_line(state, trend)
+    if state["active_guests"]:
+        names = "、".join(
+            state["records"][guest["id"]]["card"]["name"]
+            for guest in state["active_guests"]
+        )
+        return (
+            ("%s离开了；" % "、".join(departed) if departed else "")
+            + "酒吧没有清场，%s仍坐在店里。老板可以挑其中几位继续聊天，"
+            "其余人照常喝酒、交谈或安静待着。\n\n老板状态：%s"
+            % (names, _body_line(state, trend))
+        )
+
+    state["interaction"] = None
+    return (
+        ("%s离店后，座位暂时空了。\n\n" % "、".join(departed) if departed else "")
+        + _spawn_scene(state)
+        + "\n\n老板状态："
+        + _body_line(state, trend)
+    )
 
 
 def _cmd_drinks(state: Dict[str, Any], args: List[str]) -> str:
@@ -6926,7 +7035,36 @@ def _cmd_guests(state: Dict[str, Any], args: List[str]) -> str:
     del args
     if not state["records"]:
         return "顾客图鉴尚未点亮。"
-    lines = ["【顾客图鉴】"]
+    lines = []
+    if state.get("active_guests"):
+        lines.append("【当前仍在店里的客人】")
+        for guest in state["active_guests"]:
+            card = state["records"][guest["id"]]["card"]
+            if not guest.get("served"):
+                activity = "正在等酒或准备续杯"
+            elif guest.get("closed"):
+                activity = "不再加酒，但仍坐在店里"
+            else:
+                activity = "正在饮用，尚未决定是否续杯"
+            drink_names = []
+            for drink_id in guest.get("drinks", [])[-2:]:
+                profile = _drink_profile(state, drink_id)
+                if profile:
+                    drink_names.append(profile["name"])
+            lines.append(
+                "%s　%s｜%s｜已喝：%s"
+                % (
+                    guest["id"],
+                    card["name"],
+                    activity,
+                    "、".join(drink_names) or "尚未出杯",
+                )
+            )
+        lines.append(
+            "老板可以挑其中几位聊天；未被聚焦的人仍会继续自己的饮酒与交谈。"
+        )
+        lines.append("")
+    lines.append("【顾客图鉴】")
     for guest_id, record in state["records"].items():
         card = record["card"]
         lines.append(

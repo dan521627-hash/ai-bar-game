@@ -77,6 +77,25 @@ class SetupAndShopTests(unittest.TestCase):
         self.assertIn("收入80点", report)
         self.assertIn("我喝过：测试酒", report)
 
+    def test_full_decor_and_upgrade_purchase_persist_and_charge_cash(self):
+        state = bar_game._default_state(44)
+        state["cash"] = 5000
+        decor_id = next(iter(bar_game.DECOR_DEFS))
+        decor_cost = int(bar_game.DECOR_DEFS[decor_id]["cost"])
+        before = state["cash"]
+        decor_result = bar_game._cmd_decorate(state, [decor_id])
+        self.assertIn(decor_id, state["decorations"])
+        self.assertEqual(state["cash"], before - decor_cost)
+        self.assertIn("已添置", decor_result)
+
+        upgrade_id = next(iter(bar_game.UPGRADE_DEFS))
+        upgrade_cost = int(bar_game.UPGRADE_DEFS[upgrade_id]["costs"][0])
+        before_upgrade = state["cash"]
+        upgrade_result = bar_game._cmd_upgrade(state, [upgrade_id])
+        self.assertEqual(state["upgrades"][upgrade_id], 1)
+        self.assertEqual(state["cash"], before_upgrade - upgrade_cost)
+        self.assertIn("完成升级", upgrade_result)
+
 
 class InteractionTests(unittest.TestCase):
     def test_conflict_is_exception_not_default_for_pairs(self):
@@ -136,6 +155,22 @@ class InteractionTests(unittest.TestCase):
         self.assertIn("营业中途又有人推门", later_text)
         self.assertIn("制作流水线", first_text)
 
+    def test_next_keeps_finished_guests_seated_instead_of_clearing_the_room(self):
+        state = bar_game._default_state(260)
+        state["phase"] = "open"
+        state["visit"] = 3
+        bar_game._spawn_scene(state, force=True)
+        original_ids = {guest["id"] for guest in state["active_guests"]}
+        self.assertTrue(original_ids)
+        for guest in state["active_guests"]:
+            guest["served"] = True
+            guest["closed"] = True
+            guest["dwell_turns"] = 3
+        state["interaction"] = None
+        bar_game._cmd_next(state, [])
+        remaining_ids = {guest["id"] for guest in state["active_guests"]}
+        self.assertTrue(original_ids.issubset(remaining_ids))
+
     def test_known_companions_can_arrive_as_a_party(self):
         found_party = False
         for seed in range(1, 1200):
@@ -152,6 +187,16 @@ class InteractionTests(unittest.TestCase):
             found_party = True
             break
         self.assertTrue(found_party, "应能抽到原作熟人结伴到店")
+
+    def test_later_normal_shift_forces_real_companion_group_if_none_arrived(self):
+        state = bar_game._default_state(812)
+        state["visit"] = 4
+        state["session"]["arrival_waves"] = 2
+        state["session"]["group_arrivals"] = 0
+        text = bar_game._spawn_scene(state, join_existing=True)
+        self.assertGreaterEqual(len(state["active_guests"]), 2)
+        self.assertEqual(state["session"]["group_arrivals"], 1)
+        self.assertIn("熟人", text)
 
 
 class WorldBreadthTests(unittest.TestCase):
@@ -462,6 +507,38 @@ class DynamicGuestTests(unittest.TestCase):
             )
             self.assertEqual(recipe["abv"], 12.4)
 
+    def test_lite_assets_are_paid_owned_upgraded_and_remembered(self):
+        launcher_path = ROOT / "bar_game_lite.py"
+        spec = importlib.util.spec_from_file_location("lite_asset_test", launcher_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with TemporaryDirectory() as directory:
+            module.SAVE_PATH = Path(directory) / "lite.json"
+            module.new_game(91, cash=900)
+            bought = module.buy_asset(
+                "old_jukebox",
+                "旧世界点唱机",
+                "equipment",
+                180,
+                "一间停业舞厅",
+                "偶尔触发音乐相关事件",
+            )
+            self.assertEqual(bought["level"], 1)
+            upgraded = module.upgrade_asset(
+                "old_jukebox",
+                260,
+                "可以读出跨世界唱片",
+            )
+            self.assertEqual(upgraded["level"], 2)
+            story = module.record_asset_story(
+                "old_jukebox", 1, "第一次在雨夜自行响起"
+            )
+            self.assertEqual(story["story_stage"], 1)
+            state = module._load()
+            self.assertEqual(state["cash"], 460)
+            self.assertEqual(state["assets"]["old_jukebox"]["total_spent"], 440)
+            self.assertEqual(module.summary()["assets"]["old_jukebox"]["level"], 2)
+
     def test_interaction_window_is_mandatory_in_both_editions_and_readme(self):
         full_text = (ROOT / "bar_game.py").read_text(encoding="utf-8")
         lite_text = (ROOT / "bar_game_lite.py").read_text(encoding="utf-8")
@@ -470,6 +547,12 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertIn("强制互动窗口" if text != readme else "强制互动节奏", text)
             self.assertIn("进门→点单→喝完→评价→离店", text)
             self.assertIn("弹", text)
+        self.assertIn("持续在场制", lite_text)
+        self.assertIn("持续在场制", readme)
+        self.assertIn("正常长度的营业至少应实际", lite_text)
+        self.assertIn("分类字段只用于记账，不能成为想象边界", full_text)
+        self.assertIn("只是数值档案的记账分类，不是内容白名单", lite_text)
+        self.assertIn("酒馆可以开在现实街区", readme)
 
     def test_full_arrival_and_service_emit_internal_pacing_brakes(self):
         state = bar_game._default_state(seed=20260728)
