@@ -248,7 +248,7 @@ class DynamicGuestTests(unittest.TestCase):
             finally:
                 bar_game.SAVE_PATH = previous_path
 
-    def test_lite_version_is_self_contained_and_offline(self):
+    def test_lite_version_is_a_thin_offline_numeric_layer(self):
         launcher_path = Path(__file__).with_name("bar_game_lite.py")
         spec = importlib.util.spec_from_file_location("lite_import_test", launcher_path)
         self.assertIsNotNone(spec)
@@ -258,23 +258,61 @@ class DynamicGuestTests(unittest.TestCase):
         source = launcher_path.read_text(encoding="utf-8")
         self.assertNotIn("CORE_URL", source)
         self.assertNotIn("urlopen", source)
-        self.assertEqual(len(module.BUILTIN_GUESTS), 24)
-        self.assertTrue(module.GUEST_COMPANION_GROUPS)
-        self.assertTrue(
-            any(
-                "harry_potter_adult" in group
-                for group in module.GUEST_COMPANION_GROUPS
-            )
-        )
+        self.assertNotIn("BUILTIN_GUESTS", source)
+        self.assertLess(launcher_path.stat().st_size, 40_000)
         for name in (
             "start",
             "new_game",
-            "cmd",
+            "define_product",
+            "purchase",
+            "define_recipe",
+            "serve",
+            "owner_drink",
+            "score_drink",
+            "roll_event",
             "viewer_link",
-            "guest_creation_prompt",
-            "register_guest",
+            "export_archive",
+            "restore_archive",
         ):
             self.assertTrue(callable(getattr(module, name, None)), name)
+
+    def test_lite_numeric_flow_and_archive(self):
+        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        spec = importlib.util.spec_from_file_location("lite_numeric_test", launcher_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with TemporaryDirectory() as directory:
+            module.SAVE_PATH = Path(directory) / "lite.json"
+            module.new_game(17, cash=1000)
+            module.define_product("gin", "金酒", "gin", 700, 40, 140)
+            module.define_product("liqueur", "利口酒", "liqueur", 500, 20, 100)
+            module.purchase("gin")
+            module.purchase("liqueur")
+            recipe = module.define_recipe(
+                "test",
+                "测试酒",
+                {"gin": 45, "liqueur": 15},
+                dilution_ml=30,
+                price=68,
+            )
+            self.assertEqual(recipe["volume_ml"], 90)
+            self.assertEqual(recipe["pure_alcohol_ml"], 21)
+            self.assertEqual(recipe["abv"], 23.33)
+            self.assertEqual(recipe["alcohol_units"], 2.1)
+            module.register_person("guest", tolerance=50, absorption=1)
+            before = module.summary()["cash"]
+            served = module.serve("guest", "test", tip=5)
+            self.assertEqual(served["received"], 73)
+            self.assertEqual(module.summary()["cash"], before + 73)
+            self.assertGreater(served["intox"]["intox"], 0)
+            owner = module.owner_drink("test")
+            self.assertGreater(owner["inventory_loss"], 0)
+            archive = module.export_archive()
+            link = module.viewer_link({"bar": "测试酒馆", "guests": []})
+            self.assertIn("/#bar=", link)
+            module.spend(50, "测试")
+            restored = module.restore_archive(archive)
+            self.assertEqual(restored["cash"], before + 73)
 
 
 if __name__ == "__main__":
