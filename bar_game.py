@@ -5071,6 +5071,9 @@ def _viewer_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
         }
     season_id = state.get("season", "spring")
     session = state.get("session", {})
+    owner_self_loss = int(session.get("owner_self_liquid_loss", 0)) + int(
+        session.get("owner_self_service_loss", 0)
+    )
     return {
         "v": 1,
         "bar": state.get("bar_name") or "未命名酒馆",
@@ -5084,6 +5087,12 @@ def _viewer_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
         "weather": session.get("weather") or "天气未记录",
         "owner_intox": round(_intox(state), 1),
         "owner_level": _drunk_level(_intox(state)),
+        "owner_body": _body_line(state)[:280],
+        "owner_drinks": [
+            str(item)[:100] for item in session.get("owner_drinks", [])[-6:]
+        ],
+        "owner_self_servings": int(session.get("owner_self_servings", 0)),
+        "owner_self_loss": owner_self_loss,
         "inventory": stock,
         "inventory_count": len(
             [

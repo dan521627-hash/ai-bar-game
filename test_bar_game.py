@@ -124,6 +124,19 @@ class WorldBreadthTests(unittest.TestCase):
             )
         )
 
+    def test_viewer_snapshot_includes_owner_drinks_and_body_state(self):
+        state = bar_game._default_state(41)
+        state["session"]["owner_drinks"] = ["长安酸", "黄油啤酒（与用户共饮）"]
+        state["session"]["owner_self_servings"] = 2
+        state["session"]["owner_self_liquid_loss"] = 11
+        state["session"]["owner_self_service_loss"] = 5
+        snapshot = bar_game._viewer_snapshot(state)
+
+        self.assertEqual(snapshot["owner_drinks"], state["session"]["owner_drinks"])
+        self.assertEqual(snapshot["owner_self_servings"], 2)
+        self.assertEqual(snapshot["owner_self_loss"], 16)
+        self.assertTrue(snapshot["owner_body"])
+
 
 if __name__ == "__main__":
     unittest.main()
