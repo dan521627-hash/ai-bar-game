@@ -553,6 +553,43 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertEqual(state["assets"]["old_jukebox"]["total_spent"], 440)
             self.assertEqual(module.summary()["assets"]["old_jukebox"]["level"], 2)
 
+    def test_lite_domain_shuffle_covers_every_macro_domain_without_context_bias(self):
+        launcher_path = ROOT / "bar_game_lite.py"
+        spec = importlib.util.spec_from_file_location("lite_domain_test", launcher_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with TemporaryDirectory() as directory:
+            module.SAVE_PATH = Path(directory) / "lite.json"
+            module.new_game(20260728)
+            custom = module.register_guest_domain(
+                "dream_archaeology",
+                "梦境考古、失落记忆文明及尚未命名的叙事来源",
+            )
+            self.assertEqual(custom["domain_id"], "dream_archaeology")
+            draws = [
+                module.draw_guest_domain()
+                for _ in range(len(module.GUEST_DOMAINS) + 1)
+            ]
+            domain_ids = [item["domain_id"] for item in draws]
+            self.assertEqual(
+                set(domain_ids),
+                set(module.GUEST_DOMAINS) | {"dream_archaeology"},
+            )
+            self.assertEqual(len(domain_ids), len(set(domain_ids)))
+            self.assertIn("history_reality", domain_ids)
+            self.assertIn("literature", domain_ids)
+            for item in draws:
+                self.assertEqual(item["source"], "independent_shuffle_bag")
+                self.assertNotIn("选择熟悉人物", item["director_rule"])
+            myth_label = module.GUEST_DOMAINS["myth_legend"]
+            self.assertIn("中国", myth_label)
+            self.assertIn("日本", myth_label)
+            self.assertIn("西游记", myth_label)
+            history_label = module.GUEST_DOMAINS["history_reality"]
+            self.assertIn("中国上下五千年", history_label)
+            self.assertIn("中外帝王", history_label)
+            self.assertIn("同一国家、时代、文化或作品系列", draws[0]["director_rule"])
+
     def test_interaction_window_is_mandatory_in_both_editions_and_readme(self):
         full_text = (ROOT / "bar_game.py").read_text(encoding="utf-8")
         lite_text = (ROOT / "bar_game_lite.py").read_text(encoding="utf-8")

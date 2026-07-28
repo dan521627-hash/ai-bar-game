@@ -106,8 +106,36 @@ AI自主经营不等于一口气演完整桌。用户没有明确要求快进时
 
 - 已有同一人物：复用旧卡、关系和记忆，作为有冷却的回头客。
 - 没有：按示例格式建立新卡。
-- 不确定人物关键经历：换一个AI真正熟悉的人，禁止硬编。
+- 不确定人物的某段经历：只写能够确认的事实，把不确定部分留白，禁止硬编；但不能因此换回当前上下文最常出现的类型。
 - 只接待明确处于可饮酒成年时期的版本。
+
+### 领域洗牌器：先决定来自哪里，再直接选人物
+
+轻量版不得先问自己“我熟悉谁”或根据当前对话联想下一个人物。每一批新来客出现前必须先调用：
+
+```python
+draw_guest_domain()
+```
+
+脚本内置历史现实、文学、世界神话传说、影视戏剧、动漫漫画、游戏、原创文明、非人/未知存在等**起始方向**。它们只是帮助打破思维惯性的路标，不是完整分类，更不是世界白名单。AI遇到任何无法自然归入现有方向的新来源时，可以先调用：
+
+```python
+register_guest_domain("新的领域ID", "开放且具体的领域说明")
+```
+
+把新的方向永久加入这家酒馆的洗牌袋。领域可以继续扩展，数量没有固定上限。
+
+世界神话传说包括但不限于中国神话、日本神话、希腊神话、北欧神话、印度神话、埃及与两河神话、美洲、非洲、大洋洲及其他地域的神话、史诗、志怪、宗教传说、民间故事和古典幻想文学；《西游记》中的成年人物和存在也可以来。列出这些只是说明跨度，绝不表示没有写到的体系不能出现。
+
+这种开放性适用于所有方向，而不只适用于神话。历史人物可以来自中国上下五千年的不同朝代与社会位置，也可以来自世界任何国家、地区、文明和时代；皇帝、女王、国王、政治家、将领、思想家、学者、科学家、艺术家、工匠、商人、探险者和普通人都可能来。外国帝王与外国历史名人当然也在范围内。文学、影视、动漫、游戏及其他方向同样要跨国家、语言、时代、作品和创作传统。以上仍然只是跨度示例，不是人物清单或出现配额。
+
+洗牌不仅要避免连续出现同一宏观类型，也要避免在同一领域内部长期锁死一个国家、时代、文化或作品系列。例如抽到历史方向时，不能永远只选中国文人或欧洲君主；抽到神话方向时，也不能永远只选希腊或北欧；抽到游戏方向时，不能连续围绕同一系列联想。
+
+洗牌器使用独立洗牌袋：一轮内每个已登记方向都会出现一次，顺序随机，用完才重新洗牌，因此不会被当前上下文锁死在游戏或二次元。
+
+得到领域后，AI直接从该领域选择人物，不再追加“必须是熟悉人物”的筛选条件。人物准确性属于后续演绎要求：只陈述可靠经历，不确定细节不硬编，但不能借此擅自改换领域。
+
+同作品的朋友、小队或伴侣结伴到店只算一次领域抽取。下一批仍须重新调用洗牌器。回头客可以自然回来，但随后出现的新人物继续使用洗牌器。只有用户明确要求“今晚是某领域专场”时，才可把对应领域ID传给`draw_guest_domain("领域ID")`；不得从用户刚刚聊过什么、喜欢谁或当前在场人物推断专场。
 
 人物卡不写固定台词。卡片只提供事实锚点、性格、关系、口味逻辑、经济倾向、酒精参数和行为边界。
 
@@ -651,6 +679,28 @@ SAVE_PATH = Path(__file__).with_name("bar_lite_save.json")
 ARCHIVE_BEGIN = "【空杯轻量数值档案｜V1】"
 ARCHIVE_END = "【数值档案结束】"
 VIEWER_BASE_URL = "https://empty-glass-club-viewer.dan521627.chatgpt.site"
+GUEST_DOMAINS = {
+    "history_reality": (
+        "中国上下五千年及世界所有地区、文明与时代的历史和现实人物；"
+        "包括但不限于中外帝王、政治家、将领、思想家、学者、科学家、"
+        "艺术家、工匠、商人、探险者与普通人"
+    ),
+    "literature": (
+        "世界各国家、语言、时代和传统中的文学、戏剧、诗歌、史诗与口述故事人物"
+    ),
+    "myth_legend": (
+        "世界各地的神话、史诗、志怪、宗教传说、民间故事与古典幻想；"
+        "包括但不限于中国、日本、希腊、北欧、印度、埃及、两河、美洲、"
+        "非洲、大洋洲及《西游记》等体系"
+    ),
+    "film_television": "影视与舞台作品",
+    "animation_comics": "动画、动漫、国漫与漫画",
+    "games": "电子游戏与桌面游戏",
+    "original_worlds": "AI原创人物、文明与世界",
+    "nonhuman_unknown": "外星、非人、概念生命与未知维度",
+}
+
+
 def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, float(value)))
 
@@ -686,6 +736,9 @@ def _default_state(
         "products": {},
         "recipes": {},
         "assets": {},
+        "guest_domain_bag": [],
+        "guest_domain_history": [],
+        "custom_guest_domains": {},
         "people": {
             "owner": {
                 "tolerance": _clamp(owner_tolerance, 5, 95),
@@ -735,6 +788,9 @@ def _load() -> Dict[str, Any]:
     state.setdefault("debt", 0)
     state.setdefault("debt_due", 0)
     state.setdefault("assets", {})
+    state.setdefault("guest_domain_bag", [])
+    state.setdefault("guest_domain_history", [])
+    state.setdefault("custom_guest_domains", {})
     for person in state.get("people", {}).values():
         person.setdefault("pending", 0.0)
         person.setdefault("peak", float(person.get("intox", 0)))
@@ -746,6 +802,97 @@ def _rand(state: Dict[str, Any]) -> float:
     value = (int(state["rng"]) * 1664525 + 1013904223) & 0xFFFFFFFF
     state["rng"] = value
     return value / 4294967296.0
+
+
+def _shuffle_with_state(state: Dict[str, Any], values: List[str]) -> List[str]:
+    shuffled = list(values)
+    for index in range(len(shuffled) - 1, 0, -1):
+        swap_index = int(_rand(state) * (index + 1))
+        shuffled[index], shuffled[swap_index] = (
+            shuffled[swap_index],
+            shuffled[index],
+        )
+    return shuffled
+
+
+def _all_guest_domains(state: Dict[str, Any]) -> Dict[str, str]:
+    domains = dict(GUEST_DOMAINS)
+    domains.update(
+        {
+            domain_id: str(label)
+            for domain_id, label in state.get("custom_guest_domains", {}).items()
+            if domain_id not in domains and str(label).strip()
+        }
+    )
+    return domains
+
+
+def register_guest_domain(domain_id: str, label: str) -> Dict[str, str]:
+    """扩展来客领域；默认方向是起点，不是不可突破的白名单。"""
+    state = _load()
+    domain_id = _safe_id(domain_id)
+    label = str(label).strip()[:240]
+    if not label:
+        raise ValueError("领域说明不能为空。")
+    if domain_id in GUEST_DOMAINS:
+        raise ValueError("这是内置起始方向，不能覆盖；可以另建更具体的新方向。")
+    state.setdefault("custom_guest_domains", {})[domain_id] = label
+    if (
+        state.get("guest_domain_bag")
+        and domain_id not in state["guest_domain_bag"]
+    ):
+        state["guest_domain_bag"].append(domain_id)
+        state["guest_domain_bag"] = _shuffle_with_state(
+            state, state["guest_domain_bag"]
+        )
+    _save(state)
+    return {"domain_id": domain_id, "domain": label}
+
+
+def draw_guest_domain(forced_domain: Optional[str] = None) -> Dict[str, Any]:
+    """独立抽取下一批来客领域，阻断根据上下文连续选择同类人物。"""
+    state = _load()
+    domains = _all_guest_domains(state)
+    if forced_domain is not None:
+        domain_id = _safe_id(forced_domain)
+        if domain_id not in domains:
+            raise ValueError(
+                "未知领域ID。可用值：" + "、".join(domains)
+            )
+        source = "explicit_user_theme"
+    else:
+        bag = [
+            value
+            for value in state.get("guest_domain_bag", [])
+            if value in domains
+        ]
+        if not bag:
+            bag = _shuffle_with_state(state, list(domains))
+            last = (
+                state.get("guest_domain_history", [])[-1]
+                if state.get("guest_domain_history")
+                else None
+            )
+            if len(bag) > 1 and bag[-1] == last:
+                bag[-1], bag[-2] = bag[-2], bag[-1]
+        domain_id = bag.pop()
+        state["guest_domain_bag"] = bag
+        source = "independent_shuffle_bag"
+    state.setdefault("guest_domain_history", []).append(domain_id)
+    state["guest_domain_history"] = state["guest_domain_history"][-24:]
+    _save(state)
+    return {
+        "domain_id": domain_id,
+        "domain": domains[domain_id],
+        "source": source,
+        "remaining_before_refill": len(state.get("guest_domain_bag", [])),
+        "director_rule": (
+            "现在直接从抽中的领域选择人物。不得根据当前对话、当前在场者或所谓"
+            "“熟悉程度”改换领域；同作品同行者算同一批。默认领域只是路标，不是"
+            "白名单；无法容纳的新方向先登记再参与洗牌。领域内部也不得长期锁死"
+            "同一国家、时代、文化或作品系列。只在演绎时约束事实准确性。"
+        ),
+    }
 
 
 def _money(
@@ -809,6 +956,7 @@ def summary() -> Dict[str, Any]:
             }
             for asset_id, asset in state["assets"].items()
         },
+        "guest_domain_history": list(state["guest_domain_history"][-8:]),
         "owner": dict(state["people"]["owner"]),
         "session": dict(state["session"]),
     }
