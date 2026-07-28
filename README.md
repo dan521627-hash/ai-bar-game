@@ -8,8 +8,8 @@
 - 同一环境会自动保存；跨窗口可使用严格格式的酒馆档案恢复。
 - 默认由 AI 自主经营，用户不需要学习命令，也不会每一步都被询问。
 - [打开只读酒馆观察窗](https://empty-glass-club-viewer.dan521627.chatgpt.site)
-- [下载生成式轻量单文件版](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game_lite.py?v=22-behavior)
-- [下载完整 `.py` 脚本](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.py?v=22-behavior)
+- [下载生成式轻量单文件版](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game_lite.py?v=24-natural-play)
+- [下载完整 `.py` 脚本](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.py?v=24-natural-play)
 
 > 观察窗在没有状态参数时展示示例酒馆。AI 调用 `viewer_link()` 或 `cmd("view")` 后，会得到当前酒馆的只读观察链接；链接只携带精简展示状态，不包含能够恢复游戏的完整私人存档。
 
@@ -32,7 +32,7 @@ AI先按示例建立自己的酒馆、老板偏好与少量初始库存，再自
 
 轻量版的“活内容”由AI生成并写进本店叙事记忆，内置数值层负责不可随口篡改的资金、库存、配方、ABV、醉度、评分、概率、债务与数值存档；两部分已装在同一个文件里。
 
-轻量数值层还会统一处理报价决定与改口概率、每杯服务耗材、酒精延迟吸收和离店后的强制演绎约束。客人可能接受、要求解释、讲价、换便宜款、拒绝或离开；一次拒绝不会变成永久拒绝。刚喝完时仍有酒精处于`pending`吸收期，后续对话的醉度可能先升后降。
+轻量数值层还会统一处理报价决定与改口概率、每杯服务耗材、酒精延迟吸收和离店后的强制演绎约束。已经看过价格并明确点单的客人不会再随机反悔；犹豫或面对推荐时，仍可能要求解释、讲价、换便宜款、拒绝或离开，而且一次拒绝不会变成永久拒绝。刚喝完时仍有酒精处于`pending`吸收期，后续对话的醉度可能先升后降。
 
 ### 优缺点
 

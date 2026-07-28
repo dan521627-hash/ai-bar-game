@@ -4505,8 +4505,12 @@ def _guest_purchase_decision(
             or (behavior == "deliberate" and decision_roll < 0.22)
         ):
             proposed = max(
-                fair_price,
-                min(spending_limit, int(round(price * (0.72 + _rand(state) * 0.12)))),
+                1,
+                min(
+                    price - 1,
+                    spending_limit,
+                    int(round(price * (0.72 + _rand(state) * 0.12))),
+                ),
             )
             haggles[profile["id"]] = {
                 "asked": price,
@@ -4919,7 +4923,10 @@ def _serve_guest(
         active["closed"] = True
         active["served"] = True
         return "这位客人已经喝到今晚的上限，不再继续加酒。"
-    if drink_id in active["drinks"]:
+    repeat_was_requested = (
+        active.get("request", {}).get("direct_drink_id") == drink_id
+    )
+    if drink_id in active["drinks"] and not repeat_was_requested:
         return "这位客人这轮已经喝过这杯了。若继续，请推荐不同的酒。"
     profile = _drink_profile(state, drink_id)
     if not profile:

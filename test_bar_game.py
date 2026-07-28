@@ -389,6 +389,27 @@ class DynamicGuestTests(unittest.TestCase):
             )
             self.assertEqual(second["decision"], "accept")
 
+    def test_lite_committed_order_does_not_randomly_reverse_itself(self):
+        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        spec = importlib.util.spec_from_file_location("lite_committed_test", launcher_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with TemporaryDirectory() as directory:
+            module.SAVE_PATH = Path(directory) / "lite.json"
+            module.new_game(31, cash=500)
+            module.define_product("gin", "金酒", "gin", 700, 40, 140)
+            module.purchase("gin")
+            module.define_recipe("neat", "净饮", {"gin": 40}, 0, 30)
+            result = module.quote_decision(
+                "guest",
+                "neat",
+                budget_remaining=48,
+                willingness=0.01,
+                committed_order=True,
+            )
+            self.assertEqual(result["decision"], "accept")
+            self.assertEqual(result["accept_chance"], 1.0)
+
     def test_lite_accepts_products_from_any_world_or_dimension(self):
         launcher_path = Path(__file__).with_name("bar_game_lite.py")
         spec = importlib.util.spec_from_file_location("lite_open_world_test", launcher_path)

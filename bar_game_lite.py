@@ -195,6 +195,8 @@ quote_decision(
 
 返回值可能是`accept`、`ask_explain`、`haggle`、`switch_cheaper`、`decline`或`walk_out`。一次拒绝不是永久状态；解释、改价或换酒后增加`attempt`重新判断。只有返回`accept`才能出杯。
 
+如果客人已经明确点了酒、看过价格且预算足够，传入`committed_order=True`；系统会把它视为已经作出的购买决定，不再让同一杯被随机拒绝。预算不足时仍会进入讲价、换酒或离店判断。犹豫、询价和老板主动推荐时不要使用这个参数。
+
 给客人出杯：
 
 ```python
@@ -1075,6 +1077,7 @@ def quote_decision(
     price_sensitivity: float = 1.0,
     explained: bool = False,
     attempt: int = 0,
+    committed_order: bool = False,
 ) -> Dict[str, Any]:
     """统一计算客人面对报价时的选择，不把一次拒绝固化为永久拒绝。"""
     state = _load()
@@ -1086,7 +1089,10 @@ def quote_decision(
     budget = max(0, int(budget_remaining))
     attempt = max(0, int(attempt))
     roll = _rand(state)
-    if budget <= 0:
+    if committed_order and 0 < price <= budget:
+        decision = "accept"
+        accept_chance = 1.0
+    elif budget <= 0:
         decision = "walk_out"
         accept_chance = 0.0
     else:
@@ -1124,6 +1130,7 @@ def quote_decision(
         "budget_remaining": budget,
         "attempt": attempt,
         "explained": bool(explained),
+        "committed_order": bool(committed_order),
         "decision": decision,
         "accept_chance": round(accept_chance, 4),
         "roll": round(roll, 5),
