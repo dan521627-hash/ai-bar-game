@@ -268,6 +268,8 @@ class DynamicGuestTests(unittest.TestCase):
             "define_recipe",
             "serve",
             "owner_drink",
+            "take_loan",
+            "repay_loan",
             "score_drink",
             "roll_event",
             "viewer_link",
@@ -312,7 +314,34 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertIn("/#bar=", link)
             module.spend(50, "测试")
             restored = module.restore_archive(archive)
-            self.assertEqual(restored["cash"], before + 73)
+            self.assertEqual(restored["cash"], before + 70)
+
+    def test_lite_accepts_products_from_any_world_or_dimension(self):
+        launcher_path = Path(__file__).with_name("bar_game_lite.py")
+        spec = importlib.util.spec_from_file_location("lite_open_world_test", launcher_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with TemporaryDirectory() as directory:
+            module.SAVE_PATH = Path(directory) / "lite.json"
+            module.new_game(88, cash=900)
+            product = module.define_product(
+                "第七码头·月潮",
+                "第七码头月潮",
+                "六维潮汐发酵物",
+                880,
+                31,
+                210,
+            )
+            self.assertEqual(product["kind"], "六维潮汐发酵物")
+            module.purchase("第七码头·月潮")
+            recipe = module.define_recipe(
+                "折叠海岸",
+                "折叠海岸",
+                {"第七码头·月潮": 40},
+                dilution_ml=60,
+                price=96,
+            )
+            self.assertEqual(recipe["abv"], 12.4)
 
 
 if __name__ == "__main__":

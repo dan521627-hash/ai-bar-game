@@ -21,32 +21,15 @@ SAVE_PATH = Path(__file__).with_name("bar_lite_save.json")
 ARCHIVE_BEGIN = "【空杯轻量数值档案｜V1】"
 ARCHIVE_END = "【数值档案结束】"
 VIEWER_BASE_URL = "https://empty-glass-club-viewer.dan521627.chatgpt.site"
-KINDS = {
-    "beer",
-    "wine",
-    "sparkling",
-    "sake",
-    "gin",
-    "vodka",
-    "rum",
-    "tequila",
-    "whisky",
-    "brandy",
-    "liqueur",
-    "baijiu",
-    "nonalcoholic",
-    "fantasy",
-}
-
-
 def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, float(value)))
 
 
 def _safe_id(value: str) -> str:
-    result = re.sub(r"[^a-z0-9_:-]", "_", str(value).strip().lower()).strip("_")
+    result = re.sub(r"[^\w:.-]", "_", str(value).strip().lower(), flags=re.UNICODE)
+    result = re.sub(r"_+", "_", result).strip("_.")
     if not result or len(result) > 64:
-        raise ValueError("ID必须是1～64位英文字母、数字、下划线、冒号或短横线。")
+        raise ValueError("ID必须是1～64位可识别字符。")
     return result
 
 
@@ -67,6 +50,8 @@ def _default_state(
         "turn": 0,
         "shift": 0,
         "cash": int(cash),
+        "debt": 0,
+        "debt_due": 0,
         "reputation": 50,
         "products": {},
         "recipes": {},
@@ -115,6 +100,8 @@ def _load() -> Dict[str, Any]:
     state = json.loads(SAVE_PATH.read_text(encoding="utf-8"))
     if state.get("version") != VERSION:
         raise ValueError("轻量数值存档版本不兼容。")
+    state.setdefault("debt", 0)
+    state.setdefault("debt_due", 0)
     return state
 
 
@@ -168,6 +155,8 @@ def summary() -> Dict[str, Any]:
     state = _load()
     return {
         "cash": state["cash"],
+        "debt": state["debt"],
+        "debt_due": state["debt_due"],
         "reputation": state["reputation"],
         "turn": state["turn"],
         "shift": state["shift"],
@@ -189,9 +178,9 @@ def define_product(
     """AI创造商品后登记其数值；这里不判断品牌、来历或文案。"""
     state = _load()
     product_id = _safe_id(product_id)
-    kind = str(kind).strip().lower()
-    if kind not in KINDS:
-        raise ValueError("未知酒类。可用种类：" + " ".join(sorted(KINDS)))
+    kind = str(kind).strip()[:64]
+    if not kind:
+        raise ValueError("商品类别不能为空；现实、幻想或任意维度的自定义类别均可。")
     bottle_ml = _clamp(bottle_ml, 50, 5000)
     abv = _clamp(abv, 0, 96)
     bottle_cost = int(_clamp(bottle_cost, 1, 1_000_000))
@@ -423,7 +412,11 @@ def serve(
     }
 
 
-def owner_drink(recipe_id: str, portions: int = 1) -> Dict[str, Any]:
+def owner_drink(
+    recipe_id: str,
+    portions: int = 1,
+    service_cost: int = 3,
+) -> Dict[str, Any]:
     """老板自饮真实扣库存，不产生收入，并单列损耗。"""
     state = _load()
     recipe_id = _safe_id(recipe_id)
@@ -431,10 +424,13 @@ def owner_drink(recipe_id: str, portions: int = 1) -> Dict[str, Any]:
         raise KeyError("没有这张配方。")
     recipe = state["recipes"][recipe_id]
     portions = int(_clamp(portions, 1, 20))
+    service_cost = max(0, int(service_cost)) * portions
     cost = _consume(state, recipe, portions)
+    if service_cost:
+        _money(state, -service_cost, "老板自饮耗材", "owner_drink")
     state["session"]["owner_drinks"] += portions
     state["session"]["owner_self_loss"] = round(
-        float(state["session"]["owner_self_loss"]) + cost,
+        float(state["session"]["owner_self_loss"]) + cost + service_cost,
         2,
     )
     intox = _add_alcohol(
@@ -443,7 +439,12 @@ def owner_drink(recipe_id: str, portions: int = 1) -> Dict[str, Any]:
         float(recipe["alcohol_units"]) * portions,
     )
     _save(state)
-    return {"inventory_loss": cost, "intox": intox}
+    return {
+        "inventory_loss": cost,
+        "service_cost": service_cost,
+        "total_self_loss": round(cost + service_cost, 2),
+        "intox": intox,
+    }
 
 
 def score_drink(
@@ -608,6 +609,34 @@ def earn(amount: int, reason: str) -> Dict[str, Any]:
     return result
 
 
+def take_loan(principal: int, repayment_total: int) -> Dict[str, Any]:
+    """危机贷款：到账本金，记录更高的待还总额。"""
+    state = _load()
+    principal = int(principal)
+    repayment_total = int(repayment_total)
+    if principal <= 0 or repayment_total <= principal:
+        raise ValueError("贷款本金必须为正，待还总额必须高于本金。")
+    state["debt"] += principal
+    state["debt_due"] += repayment_total
+    result = _money(state, principal, "应急贷款到账", "loan")
+    _save(state)
+    return {**result, "debt": state["debt"], "debt_due": state["debt_due"]}
+
+
+def repay_loan(amount: int) -> Dict[str, Any]:
+    """偿还贷款；还款从现金扣除，不能超过待还额。"""
+    state = _load()
+    amount = int(amount)
+    if amount <= 0 or amount > int(state["debt_due"]):
+        raise ValueError("还款额必须为正且不能超过待还总额。")
+    state["debt_due"] -= amount
+    result = _money(state, -amount, "偿还贷款", "loan_repayment")
+    if state["debt_due"] == 0:
+        state["debt"] = 0
+    _save(state)
+    return {**result, "debt": state["debt"], "debt_due": state["debt_due"]}
+
+
 def close_shift(fixed_cost: int = 52) -> Dict[str, Any]:
     """结算一次营业；故事总结由AI另写，数值报告由这里生成。"""
     state = _load()
@@ -689,6 +718,8 @@ def viewer_link(snapshot: Optional[Dict[str, Any]] = None) -> str:
         {
             "v": 1,
             "cash": state["cash"],
+            "debt": state["debt"],
+            "debt_due": state["debt_due"],
             "reputation": state["reputation"],
             "updated_turn": state["turn"],
             "owner_intox": state["people"]["owner"]["intox"],
