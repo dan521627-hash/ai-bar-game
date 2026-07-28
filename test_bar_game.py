@@ -259,6 +259,13 @@ class DynamicGuestTests(unittest.TestCase):
         self.assertNotIn("CORE_URL", source)
         self.assertNotIn("urlopen", source)
         self.assertEqual(len(module.BUILTIN_GUESTS), 24)
+        self.assertTrue(module.GUEST_COMPANION_GROUPS)
+        self.assertTrue(
+            any(
+                "harry_potter_adult" in group
+                for group in module.GUEST_COMPANION_GROUPS
+            )
+        )
         for name in (
             "start",
             "new_game",

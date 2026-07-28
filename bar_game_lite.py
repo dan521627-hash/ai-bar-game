@@ -1160,6 +1160,28 @@ BUILTIN_GUESTS: List[Dict[str, Any]] = [{'id': 'li_bai',
   'dislikes': ['crisp']}]
 
 
+GUEST_COMPANION_GROUPS = [('harry_potter_adult', 'hermione_granger_adult', 'ron_weasley_adult'),
+ ('monkey_d_luffy', 'roronoa_zoro', 'nami', 'sanji', 'nico_robin'),
+ ('naruto_adult', 'sasuke_adult', 'sakura_adult', 'kakashi_hatake'),
+ ('tony_stark', 'natasha_romanoff', 'thor_marvel', 'peter_parker_adult'),
+ ('leia_organa', 'han_solo', 'luke_skywalker'),
+ ('frodo_baggins', 'samwise_gamgee', 'aragorn', 'legolas', 'gimli'),
+ ('xia_yizhou', 'qin_che', 'shen_xinghui', 'li_shen', 'qi_yu'),
+ ('simon_ghost_riley', 'john_price', 'john_soap_mactavish', 'farah_karim'),
+ ('leon_kennedy', 'jill_valentine', 'chris_redfield', 'ada_wong'),
+ ('cloud_strife', 'tifa_lockhart', 'aerith_gainsborough'),
+ ('kazuma_kiryu', 'goro_majima', 'ichiban_kasuga'),
+ ('commander_shepard', 'garrus_vakarian', 'liara_tsoni', 'tali_zorah'),
+ ('astarion', 'shadowheart', 'gale_dekarios', 'karlach', 'laezel'),
+ ('connor_detroit', 'kara_detroit', 'markus_detroit'),
+ ('zhongli', 'beidou', 'ningguang', 'diluc', 'kaeya'),
+ ('kafka_hsr', 'welt_yang', 'himeko_hsr', 'blade_hsr', 'jing_yuan'),
+ ('zhang_chulan', 'feng_baobao', 'wang_ye_yiren', 'zhuge_qing_yiren'),
+ ('wu_liuqi', 'meihua_shisan_adult'),
+ ('wei_wuxian_adult', 'lan_wangji_adult'),
+ ('guo_jing_adult', 'huang_rong_adult')]
+
+
 def _catalog_tastes(identifier: str) -> Tuple[List[str], List[str]]:
     keys = list(TAGS)
     value = sum((index + 1) * ord(char) for index, char in enumerate(identifier))

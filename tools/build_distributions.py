@@ -68,6 +68,9 @@ def build() -> None:
     lite_catalog = """BUILTIN_GUESTS: List[Dict[str, Any]] = %s
 
 
+GUEST_COMPANION_GROUPS = %s
+
+
 def _catalog_tastes(identifier: str) -> Tuple[List[str], List[str]]:
     keys = list(TAGS)
     value = sum((index + 1) * ord(char) for index, char in enumerate(identifier))
@@ -83,7 +86,7 @@ def _catalog_tastes(identifier: str) -> Tuple[List[str], List[str]]:
         dislike = keys[(keys.index(dislike) + 1) %% len(keys)]
     return likes, [dislike]
 
-""" % _render_cards(samples)
+""" % (_render_cards(samples), pprint.pformat(module.GUEST_COMPANION_GROUPS, width=100))
     lite_source = source[:catalog_start] + lite_catalog + source[catalog_end + 1 :]
     lite_source = lite_source.replace(
         "《空杯俱乐部》：给 AI 玩的零依赖文字酒吧游戏。",
