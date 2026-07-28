@@ -287,6 +287,8 @@ conversation_turn("owner")
 
 返回值中的`body`、`cognition`、`expression`和`hard_limit`是本轮不可跳过的演绎约束。直到`must_act=False`，AI才能完全恢复平常表达。
 
+`close_shift()`只会结束已经离店NPC的当晚醉态，避免回头客隔日仍带着上一晚的即时醉度；耐受、历史峰值和叙事记忆仍保留。老板的`intox`与`pending`绝不在关门时清空，必须继续通过上述用户对话轮自然吸收和消退。
+
 ## 13. NPC之间的互动与冲突
 
 日常情况占绝大多数：
@@ -1401,10 +1403,15 @@ def repay_loan(amount: int) -> Dict[str, Any]:
 
 
 def close_shift(fixed_cost: int = 52) -> Dict[str, Any]:
-    """结算一次营业；故事总结由AI另写，数值报告由这里生成。"""
+    """结算营业；NPC离店后结束当晚醉态，老板酒意继续保留。"""
     state = _load()
     before = dict(state["session"])
     _money(state, -max(0, int(fixed_cost)), "固定营业成本", "fixed_cost")
+    for person_id, person in state["people"].items():
+        if person_id == "owner":
+            continue
+        person["intox"] = 0.0
+        person["pending"] = 0.0
     state["shift"] += 1
     result = {
         "shift": state["shift"],

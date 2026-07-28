@@ -356,12 +356,21 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertFalse(recovered["must_act"])
             self.assertIn("可以恢复平常表达", recovered["expression"])
             self.assertIn("醉态影响已经结束", recovered["hard_limit"])
+            module.register_person("guest_two", tolerance=35, absorption=1.1)
+            module.serve("guest_two", "test")
+            self.assertGreater(module._load()["people"]["guest_two"]["pending"], 0)
+            module.close_shift()
+            closed_people = module._load()["people"]
+            self.assertEqual(closed_people["guest_two"]["intox"], 0)
+            self.assertEqual(closed_people["guest_two"]["pending"], 0)
+            self.assertEqual(closed_people["owner"]["intox"], recovered["intox"])
+            archived_cash = module.summary()["cash"]
             archive = module.export_archive()
             link = module.viewer_link({"bar": "测试酒馆", "guests": []})
             self.assertIn("/#bar=", link)
             module.spend(50, "测试")
             restored = module.restore_archive(archive)
-            self.assertEqual(restored["cash"], before + 66)
+            self.assertEqual(restored["cash"], archived_cash)
 
     def test_lite_quote_decision_handles_price_without_permanent_refusal(self):
         launcher_path = Path(__file__).with_name("bar_game_lite.py")
