@@ -9,7 +9,7 @@
 - 默认由 AI 自主经营，用户不需要学习命令，也不会每一步都被询问。
 - [打开只读酒馆观察窗](https://empty-glass-club-viewer.dan521627.chatgpt.site)
 - [先读版本选择入口](https://empty-glass-club-viewer.dan521627.chatgpt.site/START_HERE.md)
-- [下载生成式轻量单文件版](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game_lite.py)
+- [下载生成式轻量单文件版](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game_lite.py?v=19-single)
 - [下载完整 `.py` 脚本](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.py)
 - [下载完整 `.txt` 兼容版](https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.txt)
 
