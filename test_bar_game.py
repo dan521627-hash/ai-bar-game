@@ -248,15 +248,19 @@ class DynamicGuestTests(unittest.TestCase):
             finally:
                 bar_game.SAVE_PATH = previous_path
 
-    def test_lite_launcher_exports_api_before_core_is_loaded(self):
+    def test_lite_version_is_self_contained_and_offline(self):
         launcher_path = Path(__file__).with_name("bar_game_lite.py")
         spec = importlib.util.spec_from_file_location("lite_import_test", launcher_path)
         self.assertIsNotNone(spec)
         self.assertIsNotNone(spec.loader)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        self.assertIsNone(module._RUNTIME)
+        source = launcher_path.read_text(encoding="utf-8")
+        self.assertNotIn("CORE_URL", source)
+        self.assertNotIn("urlopen", source)
+        self.assertEqual(len(module.BUILTIN_GUESTS), 24)
         for name in (
+            "start",
             "new_game",
             "cmd",
             "viewer_link",
