@@ -8,6 +8,13 @@ import bar_game
 
 
 class SetupAndShopTests(unittest.TestCase):
+    def test_readme_requires_owner_to_choose_exactly_one_version(self):
+        readme = Path(__file__).with_name("README.md").read_text(encoding="utf-8")
+        self.assertIn("执行AI必须先让主人选择版本", readme)
+        self.assertIn("你想选择完整版，还是生成式轻量版？", readme)
+        self.assertIn("禁止同时读取两版", readme)
+        self.assertIn("已经明确指定版本", readme)
+
     def test_batch_separator_ignores_semicolon_inside_quotes(self):
         command = 'talk guest "first clause; second clause"; status'
         self.assertEqual(
