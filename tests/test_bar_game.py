@@ -462,6 +462,22 @@ class DynamicGuestTests(unittest.TestCase):
             )
             self.assertEqual(recipe["abv"], 12.4)
 
+    def test_interaction_window_is_mandatory_in_both_editions_and_readme(self):
+        full_text = (ROOT / "bar_game.py").read_text(encoding="utf-8")
+        lite_text = (ROOT / "bar_game_lite.py").read_text(encoding="utf-8")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        for text in (full_text, lite_text, readme):
+            self.assertIn("强制互动窗口" if text != readme else "强制互动节奏", text)
+            self.assertIn("进门→点单→喝完→评价→离店", text)
+            self.assertIn("弹", text)
+
+    def test_full_arrival_and_service_emit_internal_pacing_brakes(self):
+        state = bar_game._default_state(seed=20260728)
+        state["phase"] = "open"
+        state["visit"] = 1
+        arrival = bar_game._spawn_scene(state, force=True)
+        self.assertIn("强制互动窗口", arrival)
+
 
 if __name__ == "__main__":
     unittest.main()
