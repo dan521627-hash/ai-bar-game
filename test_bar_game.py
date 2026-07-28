@@ -259,7 +259,11 @@ class DynamicGuestTests(unittest.TestCase):
         self.assertNotIn("CORE_URL", source)
         self.assertNotIn("urlopen", source)
         self.assertNotIn("BUILTIN_GUESTS", source)
-        self.assertLess(launcher_path.stat().st_size, 40_000)
+        self.assertLess(launcher_path.stat().st_size, 80_000)
+        guide = module.start()
+        self.assertIn("功能完整性清单", guide)
+        self.assertIn("示例1：历史人物", guide)
+        self.assertIn("没有世界、作品、物种、时代、空间或维度白名单", guide)
         for name in (
             "start",
             "new_game",
