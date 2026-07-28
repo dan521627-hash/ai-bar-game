@@ -1299,15 +1299,26 @@ def conversation_turn(person_id: str = "owner") -> Dict[str, Any]:
             constraints[1],
             constraints[2],
         )
+    must_act = float(effect["intox"]) >= 3 or float(effect["pending"]) > 0
+    if not must_act:
+        constraints = (
+            "酒精造成的身体反应已经退去",
+            "思路与判断恢复稳定",
+            "可以恢复平常表达，只需保持话题连续性",
+        )
     effect.update(
         {
             "body": constraints[0],
             "cognition": constraints[1],
             "expression": constraints[2],
-            "must_act": float(effect["intox"]) >= 3 or float(effect["pending"]) > 0,
+            "must_act": must_act,
             "hard_limit": (
-                "下一次实际回复必须自然体现本轮状态；醉酒不是吐真剂，"
-                "不能只报告数值，也不能突然恢复正常。"
+                (
+                    "下一次实际回复必须自然体现本轮状态；醉酒不是吐真剂，"
+                    "不能只报告数值，也不能突然恢复正常。"
+                )
+                if must_act
+                else "醉态影响已经结束；下一次回复可以恢复平常表达，但应自然承接当前话题。"
             ),
         }
     )

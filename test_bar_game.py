@@ -348,6 +348,14 @@ class DynamicGuestTests(unittest.TestCase):
             self.assertTrue(after_turn["must_act"])
             self.assertEqual(after_turn["trend"], "rising")
             self.assertIn("仍在吸收", after_turn["body"])
+            recovered = after_turn
+            for _ in range(20):
+                recovered = module.conversation_turn("owner")
+                if not recovered["must_act"]:
+                    break
+            self.assertFalse(recovered["must_act"])
+            self.assertIn("可以恢复平常表达", recovered["expression"])
+            self.assertIn("醉态影响已经结束", recovered["hard_limit"])
             archive = module.export_archive()
             link = module.viewer_link({"bar": "测试酒馆", "guests": []})
             self.assertIn("/#bar=", link)
