@@ -99,6 +99,31 @@ class WorldBreadthTests(unittest.TestCase):
         ):
             self.assertIn(upgrade_id, bar_game.UPGRADE_DEFS)
 
+    def test_season_time_and_weather_are_not_a_fixed_cycle(self):
+        state = bar_game._default_state(2026)
+        seasons = []
+        opening_times = []
+        weathers = []
+        for _ in range(16):
+            bar_game._advance_calendar(state)
+            seasons.append(state["season"])
+            opening_times.append(state["opening_time"])
+            weathers.append(state["weather"])
+
+        self.assertGreaterEqual(len(set(seasons)), 3)
+        self.assertTrue(
+            all(
+                opening_times[index] != opening_times[index - 1]
+                for index in range(1, len(opening_times))
+            )
+        )
+        self.assertTrue(
+            all(
+                weathers[index] != weathers[index - 1]
+                for index in range(1, len(weathers))
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,7 +19,7 @@ from urllib.request import Request, urlopen
 
 
 GAME_URL = "https://empty-glass-club-viewer.dan521627.chatgpt.site/bar_game.py"
-GAME_SHA256 = "b51e5c717d9f5b6adce6a2c21ae9ae8e45e0878d24c0a385fc03fdecceeb089c"
+GAME_SHA256 = "cca07e5f709f12ee01b21b3ab957a1b383f65d0af9cf08be1b93e2f7df5e4ebf"
 FULL_FILENAME = "bar_game_full.py"
 
 CHOICE_PROMPT = """开始前请让用户选择：

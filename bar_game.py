@@ -1778,6 +1778,7 @@ def _default_state(seed: int) -> Dict[str, Any]:
         "calendar_day": 1,
         "season": "spring",
         "opening_time": None,
+        "weather": None,
         "records": {},
         "custom_guests": [],
         "generated_guest_no": 0,
@@ -1852,6 +1853,7 @@ def _load() -> Dict[str, Any]:
     state.setdefault("calendar_day", max(1, int(state.get("visit", 0)) * 19 + 1))
     state.setdefault("season", "spring")
     state.setdefault("opening_time", None)
+    state.setdefault("weather", None)
     state.setdefault("play_mode", "autonomous")
     state.setdefault("post_bar_turns", 0)
     state.setdefault("bar_concept", "")
@@ -5579,25 +5581,41 @@ def _cmd_buy(state: Dict[str, Any], args: List[str]) -> str:
 
 
 def _advance_calendar(state: Dict[str, Any]) -> str:
-    """推进酒馆自己的日期、季节和本次开门时段。"""
-    state["calendar_day"] = int(state.get("calendar_day", 1)) + 12 + int(
-        _rand(state) * 22
+    """随机推进酒馆历、季节、天气和本次开门时段。"""
+    state["calendar_day"] = int(state.get("calendar_day", 1)) + 1 + int(
+        _rand(state) * 35
     )
-    day_of_year = (int(state["calendar_day"]) - 1) % 360
-    season_id = ("spring", "summer", "autumn", "winter")[day_of_year // 90]
+    previous_season = state.get("season")
+    season_id = _weighted_choice(
+        state,
+        [
+            (
+                candidate,
+                0.32 if candidate == previous_season else 0.68 / 3,
+            )
+            for candidate in ("spring", "summer", "autumn", "winter")
+        ],
+    )
     previous_time = state.get("opening_time")
     choices = [value for value in OPENING_TIMES if value != previous_time]
     opening_time = _choice(state, choices or OPENING_TIMES)
-    weather = _choice(state, SEASONS[season_id]["weather"])
+    previous_weather = state.get("weather")
+    weather_choices = [
+        value
+        for value in SEASONS[season_id]["weather"]
+        if value != previous_weather
+    ]
+    weather = _choice(state, weather_choices or SEASONS[season_id]["weather"])
     state["season"] = season_id
     state["opening_time"] = opening_time
+    state["weather"] = weather
     state["session"]["season"] = season_id
     state["session"]["opening_time"] = opening_time
     state["session"]["weather"] = weather
     featured = _seasonal_featured_drinks(state)
     state["session"]["featured_drinks"] = featured
     return (
-        "时间：第%d日·%s季·%s｜门外是%s。\n"
+        "时间：酒馆历第%d日·%s季·%s｜门外是%s。\n"
         "本季主推：%s｜当晚酒款：%s；这只是推荐，不会阻止任何客人点其他风味。"
         % (
             int(state["calendar_day"]),
