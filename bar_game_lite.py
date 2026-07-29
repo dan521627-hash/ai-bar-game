@@ -504,7 +504,7 @@ AI用现有库存创造原创调酒，薄脚本负责核算配方。原创酒一
 
 如果薄计算脚本没有某项叙事接口，由AI依照本规则在叙事记忆中执行；这不代表该功能被取消。
 
-需要给用户查看酒馆时，AI把酒馆名、季节天气、当前来客、事件、老板身体感受与喝过的酒组成精简字典，调用`viewer_link(snapshot)`。脚本会覆盖其中的资金、声誉、真实库存、老板醉度和自饮损耗，生成只读观察链接；经营变化后重新生成即可。
+需要给用户查看酒馆时，AI把酒馆名、季节天气、当前来客、事件、老板身体感受与喝过的酒组成字典，调用`viewer_link(snapshot)`。脚本会覆盖其中的资金、声誉、真实库存、老板醉度和自饮损耗，并严格筛选观察窗字段。客人、酒单、事件、老板状态都会保留；过多的旧事件、长描述和观察窗不用的私密剧情会自动折叠，最终网址强制不超过1800字符。AI不得自行拼接或改写`#bar=`后面的内容；经营变化后重新生成即可。
 
 ## 19. AI自主性
 
@@ -703,6 +703,7 @@ SAVE_PATH = Path(__file__).with_name("bar_lite_save.json")
 ARCHIVE_BEGIN = "【空杯轻量数值档案｜V1】"
 ARCHIVE_END = "【数值档案结束】"
 VIEWER_BASE_URL = "https://empty-glass-club-viewer.dan521627.chatgpt.site"
+VIEWER_URL_MAX_CHARS = 1800
 CREATIVE_DIRECTIONS = {
     "history": (
         "中国上下五千年及世界所有地区、文明与时代的历史人物；包括但不限于"
@@ -1920,6 +1921,225 @@ def restore_archive(archive_text: str) -> Dict[str, Any]:
     return summary()
 
 
+def _compact_viewer_snapshot(snapshot: Dict[str, Any]) -> Dict[str, Any]:
+    """严格筛选观察字段，避免执行AI把整段剧情塞进分享网址。"""
+    source = snapshot if isinstance(snapshot, dict) else {}
+    trimmed = [bool(source.get("snapshot_trimmed"))]
+
+    def clip(value: Any, limit: int, fallback: str = "") -> str:
+        text = re.sub(r"\s+", " ", str(value or "")).strip() or fallback
+        if len(text) <= limit:
+            return text
+        trimmed[0] = True
+        return text[: max(1, limit - 1)].rstrip() + "…"
+
+    def seq(value: Any) -> List[Any]:
+        return list(value) if isinstance(value, (list, tuple)) else []
+
+    def number(value: Any, default: float = 0.0) -> float:
+        try:
+            result = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return default
+        if result != result or abs(result) == float("inf"):
+            return default
+        return round(max(-999_999_999.0, min(999_999_999.0, result)), 1)
+
+    raw_guests = [item for item in seq(source.get("guests")) if isinstance(item, dict)]
+    raw_inventory = [
+        item for item in seq(source.get("inventory")) if isinstance(item, dict)
+    ]
+    if len(raw_guests) > 4 or len(raw_inventory) > 10:
+        trimmed[0] = True
+    guests = []
+    for guest in raw_guests[:4]:
+        drinks = seq(guest.get("drinks"))
+        if len(drinks) > 2:
+            trimmed[0] = True
+        guests.append(
+            {
+                "name": clip(guest.get("name"), 36, "未署名来客"),
+                "origin": clip(guest.get("origin"), 72),
+                "visits": max(0, int(number(guest.get("visits"), 1))),
+                "served": bool(guest.get("served")),
+                "drinks": [clip(item, 48) for item in drinks[-2:]],
+                "request": clip(guest.get("request"), 100),
+                "intox": number(guest.get("intox")),
+            }
+        )
+    inventory = [
+        {
+            "name": clip(item.get("name"), 42, "未命名酒款"),
+            "remaining": number(item.get("remaining")),
+            "edition": clip(item.get("edition"), 48),
+        }
+        for item in raw_inventory[:10]
+    ]
+
+    def recent(key: str, count: int, limit: int) -> List[str]:
+        values = seq(source.get(key))
+        if len(values) > count:
+            trimmed[0] = True
+        return [clip(item, limit) for item in values[-count:]] if count else []
+
+    interaction = source.get("interaction")
+    interaction_view = None
+    if isinstance(interaction, dict):
+        people = seq(interaction.get("participants"))
+        if len(people) > 2:
+            trimmed[0] = True
+        interaction_view = {
+            "kind": clip(interaction.get("kind"), 28, "现场互动"),
+            "participants": [clip(item, 28) for item in people[:2]],
+            "topic": clip(interaction.get("topic"), 100),
+            "trigger": clip(interaction.get("trigger"), 100),
+            "tension": max(0, min(100, int(number(interaction.get("tension"))))),
+        }
+    compact = {
+        "v": 1,
+        "bar": clip(source.get("bar"), 48, "未命名酒馆"),
+        "bar_id": clip(source.get("bar_id"), 48),
+        "visit": max(0, int(number(source.get("visit")))),
+        "phase": clip(source.get("phase"), 16, "open"),
+        "cash": int(number(source.get("cash"))),
+        "reputation": int(number(source.get("reputation"), 50)),
+        "season": clip(source.get("season"), 16, "未知季节"),
+        "opening": clip(source.get("opening"), 20, "时间未记录"),
+        "weather": clip(source.get("weather"), 36, "天气未记录"),
+        "owner_intox": number(source.get("owner_intox")),
+        "owner_level": clip(source.get("owner_level"), 20, "清醒"),
+        "owner_body": clip(source.get("owner_body"), 160),
+        "owner_drinks": recent("owner_drinks", 4, 48),
+        "owner_self_servings": max(
+            0, int(number(source.get("owner_self_servings")))
+        ),
+        "owner_self_loss": max(0, int(number(source.get("owner_self_loss")))),
+        "inventory": inventory,
+        "inventory_count": max(
+            len(raw_inventory), int(number(source.get("inventory_count")))
+        ),
+        "guest_count": max(
+            len(raw_guests), int(number(source.get("guest_count")))
+        ),
+        "active_guest_count": max(
+            len(raw_guests), int(number(source.get("active_guest_count")))
+        ),
+        "guests": guests,
+        "memories": recent("memories", 3, 120),
+        "highlights": recent("highlights", 4, 120),
+        "decor": recent("decor", 6, 48),
+        "interaction": interaction_view,
+        "updated_turn": max(0, int(number(source.get("updated_turn")))),
+        "snapshot_trimmed": bool(trimmed[0]),
+    }
+    return compact
+
+
+def _encode_viewer_snapshot(snapshot: Dict[str, Any]) -> str:
+    raw = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":")).encode(
+        "utf-8"
+    )
+    payload = base64.urlsafe_b64encode(zlib.compress(raw, 9)).decode("ascii")
+    return VIEWER_BASE_URL + "/#bar=" + payload.rstrip("=")
+
+
+def _fit_viewer_link(snapshot: Dict[str, Any]) -> str:
+    compact = _compact_viewer_snapshot(snapshot)
+    link = _encode_viewer_snapshot(compact)
+    if len(link) <= VIEWER_URL_MAX_CHARS:
+        return link
+    compact["snapshot_trimmed"] = True
+    for key, minimum in (
+        ("memories", 0),
+        ("decor", 0),
+        ("highlights", 1),
+        ("guests", 2),
+        ("inventory", 4),
+        ("owner_drinks", 1),
+    ):
+        while len(compact[key]) > minimum and len(link) > VIEWER_URL_MAX_CHARS:
+            compact[key].pop(0)
+            link = _encode_viewer_snapshot(compact)
+    if len(link) > VIEWER_URL_MAX_CHARS:
+        compact["interaction"] = None
+        compact["owner_body"] = _viewer_text_for_link(
+            compact.get("owner_body"), 44
+        )
+        for guest in compact["guests"]:
+            guest["origin"] = _viewer_text_for_link(guest.get("origin"), 24)
+            guest["request"] = ""
+        compact["highlights"] = [
+            _viewer_text_for_link(item, 40) for item in compact["highlights"][-1:]
+        ]
+        link = _encode_viewer_snapshot(compact)
+    if len(link) > VIEWER_URL_MAX_CHARS:
+        event = (
+            compact["highlights"] or compact["memories"] or ["较长事件已折叠"]
+        )[-1]
+        compact = {
+            "v": 1,
+            "bar": _viewer_text_for_link(compact["bar"], 18),
+            "bar_id": "",
+            "visit": compact["visit"],
+            "phase": compact["phase"],
+            "cash": compact["cash"],
+            "reputation": compact["reputation"],
+            "season": _viewer_text_for_link(compact["season"], 8),
+            "opening": _viewer_text_for_link(compact["opening"], 12),
+            "weather": _viewer_text_for_link(compact["weather"], 16),
+            "owner_intox": compact["owner_intox"],
+            "owner_level": _viewer_text_for_link(compact["owner_level"], 12),
+            "owner_body": _viewer_text_for_link(compact["owner_body"], 28),
+            "owner_drinks": [
+                _viewer_text_for_link(item, 18)
+                for item in compact["owner_drinks"][-1:]
+            ],
+            "owner_self_servings": compact["owner_self_servings"],
+            "owner_self_loss": compact["owner_self_loss"],
+            "inventory": [
+                {
+                    "name": _viewer_text_for_link(item["name"], 18),
+                    "remaining": item["remaining"],
+                    "edition": "",
+                }
+                for item in compact["inventory"][:3]
+            ],
+            "inventory_count": compact["inventory_count"],
+            "guest_count": compact["guest_count"],
+            "active_guest_count": compact["active_guest_count"],
+            "guests": [
+                {
+                    "name": _viewer_text_for_link(item["name"], 18),
+                    "origin": "",
+                    "visits": item["visits"],
+                    "served": item["served"],
+                    "drinks": [
+                        _viewer_text_for_link(drink, 16)
+                        for drink in item["drinks"][-1:]
+                    ],
+                    "request": "",
+                    "intox": item["intox"],
+                }
+                for item in compact["guests"][:2]
+            ],
+            "memories": [],
+            "highlights": [_viewer_text_for_link(event, 28)],
+            "decor": [],
+            "interaction": None,
+            "updated_turn": compact["updated_turn"],
+            "snapshot_trimmed": True,
+        }
+        link = _encode_viewer_snapshot(compact)
+    if len(link) > VIEWER_URL_MAX_CHARS:
+        raise ValueError("观察快照无法压入安全链接长度。")
+    return link
+
+
+def _viewer_text_for_link(value: Any, limit: int) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    return text if len(text) <= limit else text[: max(1, limit - 1)] + "…"
+
+
 def viewer_link(snapshot: Optional[Dict[str, Any]] = None) -> str:
     """把AI提供的精简叙事快照与真实数值合成只读观察链接。"""
     state = _load()
@@ -1951,9 +2171,7 @@ def viewer_link(snapshot: Optional[Dict[str, Any]] = None) -> str:
             ),
         }
     )
-    raw = json.dumps(view, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    payload = base64.urlsafe_b64encode(zlib.compress(raw, 9)).decode("ascii")
-    return VIEWER_BASE_URL + "/#bar=" + payload.rstrip("=")
+    return _fit_viewer_link(view)
 
 
 def start() -> str:

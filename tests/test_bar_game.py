@@ -1,5 +1,9 @@
 import unittest
 import importlib.util
+import base64
+import json
+import random
+import zlib
 from collections import Counter
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -7,6 +11,20 @@ from tempfile import TemporaryDirectory
 import bar_game
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def decode_viewer_link(link):
+    payload = link.split("#bar=", 1)[1]
+    payload += "=" * ((4 - len(payload) % 4) % 4)
+    return json.loads(
+        zlib.decompress(base64.urlsafe_b64decode(payload)).decode("utf-8")
+    )
+
+
+def noisy_text(seed, length):
+    rng = random.Random(seed)
+    return "".join(chr(0x4E00 + rng.randrange(6000)) for _ in range(length))
+
 
 class SetupAndShopTests(unittest.TestCase):
     def test_license_invites_derivatives_but_requires_original_attribution(self):
@@ -275,6 +293,74 @@ class WorldBreadthTests(unittest.TestCase):
         self.assertEqual(snapshot["owner_self_loss"], 16)
         self.assertTrue(snapshot["owner_body"])
 
+    def test_full_viewer_link_hard_caps_bloated_snapshot(self):
+        snapshot = {
+            "bar": noisy_text(1, 500),
+            "visit": 12,
+            "phase": "open",
+            "cash": 468,
+            "reputation": 61,
+            "season": "夏",
+            "opening": "23:10",
+            "weather": noisy_text(2, 500),
+            "owner_intox": 34,
+            "owner_level": "微醺",
+            "owner_body": noisy_text(3, 500),
+            "owner_drinks": [
+                noisy_text(100 + index, 200) for index in range(12)
+            ],
+            "inventory": [
+                {
+                    "name": noisy_text(200 + index, 100),
+                    "remaining": 8,
+                    "edition": noisy_text(300 + index, 100),
+                }
+                for index in range(30)
+            ],
+            "inventory_count": 30,
+            "guests": [
+                {
+                    "name": noisy_text(400 + index, 80),
+                    "origin": noisy_text(500 + index, 300),
+                    "visits": index + 1,
+                    "served": True,
+                    "drinks": [
+                        noisy_text(600 + index, 120),
+                        noisy_text(700 + index, 120),
+                    ],
+                    "request": noisy_text(800 + index, 400),
+                    "intox": 20,
+                }
+                for index in range(20)
+            ],
+            "guest_count": 20,
+            "memories": [noisy_text(900 + index, 500) for index in range(20)],
+            "highlights": [
+                noisy_text(1000 + index, 500) for index in range(20)
+            ],
+            "decor": [noisy_text(1100 + index, 200) for index in range(20)],
+            "interaction": {
+                "kind": noisy_text(1201, 100),
+                "participants": [
+                    noisy_text(1202, 100),
+                    noisy_text(1203, 100),
+                    noisy_text(1204, 100),
+                ],
+                "topic": noisy_text(1205, 500),
+                "trigger": noisy_text(1206, 500),
+                "tension": 52,
+            },
+            "updated_turn": 99,
+        }
+        link = bar_game._viewer_link_from_snapshot(snapshot)
+        decoded = decode_viewer_link(link)
+        self.assertLessEqual(len(link), bar_game.VIEWER_URL_MAX_CHARS)
+        self.assertTrue(decoded["snapshot_trimmed"])
+        self.assertGreater(len(decoded["guests"]), 0)
+        self.assertGreater(len(decoded["inventory"]), 0)
+        self.assertGreater(len(decoded["highlights"]), 0)
+        self.assertIn("owner_body", decoded)
+
 
 class NpcIntoxicationTests(unittest.TestCase):
     def test_npc_intoxication_has_distinct_stages(self):
@@ -349,7 +435,7 @@ class DynamicGuestTests(unittest.TestCase):
         self.assertNotIn("CORE_URL", source)
         self.assertNotIn("urlopen", source)
         self.assertNotIn("BUILTIN_GUESTS", source)
-        self.assertLess(launcher_path.stat().st_size, 80_000)
+        self.assertLess(launcher_path.stat().st_size, 90_000)
         guide = module.start()
         self.assertIn("功能完整性清单", guide)
         self.assertIn("示例1：历史人物", guide)
@@ -438,6 +524,60 @@ class DynamicGuestTests(unittest.TestCase):
             module.spend(50, "测试")
             restored = module.restore_archive(archive)
             self.assertEqual(restored["cash"], archived_cash)
+
+    def test_lite_viewer_enforces_schema_and_safe_link_length(self):
+        launcher_path = ROOT / "bar_game_lite.py"
+        spec = importlib.util.spec_from_file_location("lite_viewer_test", launcher_path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with TemporaryDirectory() as directory:
+            module.SAVE_PATH = Path(directory) / "lite.json"
+            module.new_game(20260729, cash=800)
+            module.define_product("gin", "测试金酒", "gin", 700, 40, 140)
+            module.purchase("gin")
+            snapshot = {
+                "bar": noisy_text(2001, 600),
+                "visit": 3,
+                "phase": "open",
+                "season": "秋",
+                "weather": noisy_text(2002, 600),
+                "owner_body": noisy_text(2003, 600),
+                "owner_drinks": [
+                    noisy_text(2100 + index, 200) for index in range(20)
+                ],
+                "guests": [
+                    {
+                        "name": noisy_text(2200 + index, 80),
+                        "origin": noisy_text(2300 + index, 300),
+                        "visits": 1,
+                        "served": True,
+                        "drinks": [
+                            noisy_text(2400 + index, 120),
+                            noisy_text(2500 + index, 120),
+                        ],
+                        "request": noisy_text(2600 + index, 400),
+                        "intox": 28,
+                    }
+                    for index in range(24)
+                ],
+                "guest_count": 24,
+                "memories": [
+                    noisy_text(2700 + index, 500) for index in range(20)
+                ],
+                "highlights": [
+                    noisy_text(2800 + index, 500) for index in range(20)
+                ],
+                "decor": [noisy_text(2900 + index, 200) for index in range(20)],
+                "ignored_private_story": noisy_text(3000, 6000),
+            }
+            link = module.viewer_link(snapshot)
+            decoded = decode_viewer_link(link)
+            self.assertLessEqual(len(link), module.VIEWER_URL_MAX_CHARS)
+            self.assertTrue(decoded["snapshot_trimmed"])
+            self.assertNotIn("ignored_private_story", decoded)
+            self.assertGreater(len(decoded["guests"]), 0)
+            self.assertGreater(len(decoded["inventory"]), 0)
+            self.assertGreater(len(decoded["highlights"]), 0)
 
     def test_lite_quote_decision_handles_price_without_permanent_refusal(self):
         launcher_path = ROOT / "bar_game_lite.py"

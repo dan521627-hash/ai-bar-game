@@ -52,6 +52,7 @@ SAVE_PATH = Path(__file__).with_name("bar_save.json")
 ARCHIVE_BEGIN = "【AI酒吧档案｜V1】"
 ARCHIVE_END = "【档案结束】"
 VIEWER_BASE_URL = "https://empty-glass-club-viewer.dan521627.chatgpt.site"
+VIEWER_URL_MAX_CHARS = 1800
 WHOLESALE_COST_SCALE = 2.0
 
 KIND_ABV = {
@@ -5360,6 +5361,334 @@ def _archive_from_state(state: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+_VIEWER_COMPACT_PROFILES = (
+    {
+        "guests": 4,
+        "inventory": 10,
+        "memories": 3,
+        "highlights": 4,
+        "decor": 6,
+        "owner_drinks": 4,
+        "bar": 48,
+        "origin": 72,
+        "request": 100,
+        "drink": 48,
+        "event": 120,
+        "owner_body": 160,
+        "asset": 48,
+        "interaction": 120,
+    },
+    {
+        "guests": 3,
+        "inventory": 8,
+        "memories": 1,
+        "highlights": 3,
+        "decor": 3,
+        "owner_drinks": 2,
+        "bar": 36,
+        "origin": 52,
+        "request": 72,
+        "drink": 36,
+        "event": 90,
+        "owner_body": 110,
+        "asset": 36,
+        "interaction": 80,
+    },
+    {
+        "guests": 2,
+        "inventory": 6,
+        "memories": 0,
+        "highlights": 2,
+        "decor": 1,
+        "owner_drinks": 1,
+        "bar": 28,
+        "origin": 36,
+        "request": 48,
+        "drink": 28,
+        "event": 64,
+        "owner_body": 72,
+        "asset": 28,
+        "interaction": 56,
+    },
+    {
+        "guests": 2,
+        "inventory": 4,
+        "memories": 0,
+        "highlights": 1,
+        "decor": 0,
+        "owner_drinks": 1,
+        "bar": 22,
+        "origin": 24,
+        "request": 0,
+        "drink": 20,
+        "event": 40,
+        "owner_body": 44,
+        "asset": 20,
+        "interaction": 32,
+    },
+)
+
+
+def _viewer_text(
+    value: Any,
+    limit: int,
+    trimmed: Optional[List[bool]] = None,
+    fallback: str = "",
+) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip() or fallback
+    if limit <= 0:
+        if text and trimmed is not None:
+            trimmed[0] = True
+        return ""
+    if len(text) <= limit:
+        return text
+    if trimmed is not None:
+        trimmed[0] = True
+    return text[: max(1, limit - 1)].rstrip() + "…"
+
+
+def _viewer_int(value: Any, default: int = 0) -> int:
+    try:
+        number = int(float(value))
+    except (TypeError, ValueError, OverflowError):
+        return int(default)
+    return max(-999_999_999, min(999_999_999, number))
+
+
+def _viewer_float(value: Any, default: float = 0.0) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return float(default)
+    if not math.isfinite(number):
+        return float(default)
+    return round(max(-999_999_999.0, min(999_999_999.0, number)), 1)
+
+
+def _viewer_sequence(value: Any) -> List[Any]:
+    return list(value) if isinstance(value, (list, tuple)) else []
+
+
+def _compact_viewer_snapshot(
+    snapshot: Dict[str, Any], profile_index: int = 0
+) -> Dict[str, Any]:
+    """只保留观察窗会显示的字段，并按档位限制数量与文字长度。"""
+    source = snapshot if isinstance(snapshot, dict) else {}
+    profile = _VIEWER_COMPACT_PROFILES[
+        max(0, min(len(_VIEWER_COMPACT_PROFILES) - 1, int(profile_index)))
+    ]
+    trimmed = [bool(source.get("snapshot_trimmed")) or profile_index > 0]
+
+    raw_guests = [
+        item for item in _viewer_sequence(source.get("guests")) if isinstance(item, dict)
+    ]
+    if len(raw_guests) > profile["guests"]:
+        trimmed[0] = True
+    guests = []
+    for guest in raw_guests[: profile["guests"]]:
+        raw_drinks = _viewer_sequence(guest.get("drinks"))
+        if len(raw_drinks) > 2:
+            trimmed[0] = True
+        drinks = [
+            _viewer_text(item, profile["drink"], trimmed)
+            for item in raw_drinks[-2:]
+            if _viewer_text(item, profile["drink"])
+        ]
+        guests.append(
+            {
+                "name": _viewer_text(guest.get("name"), 36, trimmed, "未署名来客"),
+                "origin": _viewer_text(
+                    guest.get("origin"), profile["origin"], trimmed
+                ),
+                "visits": max(0, _viewer_int(guest.get("visits"), 1)),
+                "served": bool(guest.get("served")),
+                "drinks": drinks,
+                "request": _viewer_text(
+                    guest.get("request"), profile["request"], trimmed
+                ),
+                "intox": _viewer_float(guest.get("intox")),
+            }
+        )
+
+    raw_inventory = [
+        item
+        for item in _viewer_sequence(source.get("inventory"))
+        if isinstance(item, dict)
+    ]
+    if len(raw_inventory) > profile["inventory"]:
+        trimmed[0] = True
+    inventory = [
+        {
+            "name": _viewer_text(item.get("name"), 42, trimmed, "未命名酒款"),
+            "remaining": _viewer_float(item.get("remaining")),
+            "edition": _viewer_text(
+                item.get("edition"), profile["asset"], trimmed
+            ),
+        }
+        for item in raw_inventory[: profile["inventory"]]
+    ]
+
+    def recent_texts(key: str, count: int, limit: int) -> List[str]:
+        values = _viewer_sequence(source.get(key))
+        if len(values) > count:
+            trimmed[0] = True
+        if count <= 0:
+            return []
+        return [
+            _viewer_text(item, limit, trimmed)
+            for item in values[-count:]
+            if _viewer_text(item, limit)
+        ]
+
+    interaction_view = None
+    interaction = source.get("interaction")
+    if isinstance(interaction, dict):
+        participants = [
+            _viewer_text(item, 28, trimmed)
+            for item in _viewer_sequence(interaction.get("participants"))[:2]
+            if _viewer_text(item, 28)
+        ]
+        if len(_viewer_sequence(interaction.get("participants"))) > 2:
+            trimmed[0] = True
+        interaction_view = {
+            "kind": _viewer_text(
+                interaction.get("kind"), 28, trimmed, "现场互动"
+            ),
+            "participants": participants,
+            "topic": _viewer_text(
+                interaction.get("topic"), profile["interaction"], trimmed
+            ),
+            "trigger": _viewer_text(
+                interaction.get("trigger"), profile["interaction"], trimmed
+            ),
+            "tension": max(0, min(100, _viewer_int(interaction.get("tension")))),
+        }
+
+    compact = {
+        "v": 1,
+        "bar": _viewer_text(
+            source.get("bar"), profile["bar"], trimmed, "未命名酒馆"
+        ),
+        "bar_id": _viewer_text(source.get("bar_id"), 48, trimmed),
+        "visit": max(0, _viewer_int(source.get("visit"))),
+        "phase": _viewer_text(source.get("phase"), 16, trimmed, "open"),
+        "cash": _viewer_int(source.get("cash")),
+        "reputation": _viewer_int(source.get("reputation"), 50),
+        "season": _viewer_text(source.get("season"), 16, trimmed, "未知季节"),
+        "opening": _viewer_text(source.get("opening"), 20, trimmed, "时间未记录"),
+        "weather": _viewer_text(source.get("weather"), 36, trimmed, "天气未记录"),
+        "owner_intox": _viewer_float(source.get("owner_intox")),
+        "owner_level": _viewer_text(
+            source.get("owner_level"), 20, trimmed, "清醒"
+        ),
+        "owner_body": _viewer_text(
+            source.get("owner_body"), profile["owner_body"], trimmed
+        ),
+        "owner_drinks": recent_texts(
+            "owner_drinks", profile["owner_drinks"], profile["drink"]
+        ),
+        "owner_self_servings": max(
+            0, _viewer_int(source.get("owner_self_servings"))
+        ),
+        "owner_self_loss": max(0, _viewer_int(source.get("owner_self_loss"))),
+        "inventory": inventory,
+        "inventory_count": max(
+            len(raw_inventory), _viewer_int(source.get("inventory_count"))
+        ),
+        "guest_count": max(
+            len(raw_guests), _viewer_int(source.get("guest_count"))
+        ),
+        "active_guest_count": max(
+            len(raw_guests), _viewer_int(source.get("active_guest_count"))
+        ),
+        "guests": guests,
+        "memories": recent_texts(
+            "memories", profile["memories"], profile["event"]
+        ),
+        "highlights": recent_texts(
+            "highlights", profile["highlights"], profile["event"]
+        ),
+        "decor": recent_texts("decor", profile["decor"], profile["asset"]),
+        "interaction": interaction_view,
+        "updated_turn": max(0, _viewer_int(source.get("updated_turn"))),
+        "snapshot_trimmed": bool(trimmed[0]),
+    }
+    return compact
+
+
+def _encode_viewer_snapshot(snapshot: Dict[str, Any]) -> str:
+    raw = json.dumps(
+        snapshot, ensure_ascii=False, separators=(",", ":")
+    ).encode("utf-8")
+    payload = base64.urlsafe_b64encode(zlib.compress(raw, 9)).decode("ascii")
+    return VIEWER_BASE_URL + "/#bar=" + payload.rstrip("=")
+
+
+def _viewer_link_from_snapshot(snapshot: Dict[str, Any]) -> str:
+    """生成有硬长度上限的观察链接；必要时自动折叠非关键展示文字。"""
+    for profile_index in range(len(_VIEWER_COMPACT_PROFILES)):
+        compact = _compact_viewer_snapshot(snapshot, profile_index)
+        link = _encode_viewer_snapshot(compact)
+        if len(link) <= VIEWER_URL_MAX_CHARS:
+            return link
+    event = (compact["highlights"] or compact["memories"] or ["较长事件已折叠"])[-1]
+    minimal = {
+        "v": 1,
+        "bar": _viewer_text(compact.get("bar"), 18, fallback="未命名酒馆"),
+        "bar_id": "",
+        "visit": compact["visit"],
+        "phase": compact["phase"],
+        "cash": compact["cash"],
+        "reputation": compact["reputation"],
+        "season": _viewer_text(compact["season"], 8),
+        "opening": _viewer_text(compact["opening"], 12),
+        "weather": _viewer_text(compact["weather"], 16),
+        "owner_intox": compact["owner_intox"],
+        "owner_level": _viewer_text(compact["owner_level"], 12),
+        "owner_body": _viewer_text(compact["owner_body"], 28),
+        "owner_drinks": [
+            _viewer_text(item, 18) for item in compact["owner_drinks"][-1:]
+        ],
+        "owner_self_servings": compact["owner_self_servings"],
+        "owner_self_loss": compact["owner_self_loss"],
+        "inventory": [
+            {
+                "name": _viewer_text(item["name"], 18),
+                "remaining": item["remaining"],
+                "edition": "",
+            }
+            for item in compact["inventory"][:3]
+        ],
+        "inventory_count": compact["inventory_count"],
+        "guest_count": compact["guest_count"],
+        "active_guest_count": compact["active_guest_count"],
+        "guests": [
+            {
+                "name": _viewer_text(item["name"], 18),
+                "origin": "",
+                "visits": item["visits"],
+                "served": item["served"],
+                "drinks": [
+                    _viewer_text(drink, 16) for drink in item["drinks"][-1:]
+                ],
+                "request": "",
+                "intox": item["intox"],
+            }
+            for item in compact["guests"][:2]
+        ],
+        "memories": [],
+        "highlights": [_viewer_text(event, 28)],
+        "decor": [],
+        "interaction": None,
+        "updated_turn": compact["updated_turn"],
+        "snapshot_trimmed": True,
+    }
+    link = _encode_viewer_snapshot(minimal)
+    if len(link) > VIEWER_URL_MAX_CHARS:
+        raise ValueError("观察快照无法压入安全链接长度。")
+    return link
+
+
 def _viewer_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
     """生成只够观察窗展示的精简状态；不包含可恢复的完整私人存档。"""
     cards = {card["id"]: card for card in _all_guest_cards(state)}
@@ -5456,6 +5785,7 @@ def _viewer_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
             ]
         ),
         "guest_count": len(state.get("records", {})),
+        "active_guest_count": len(state.get("active_guests", [])),
         "guests": guests,
         "memories": [str(item)[:260] for item in state.get("memories", [])[-5:]],
         "highlights": [
@@ -5468,11 +5798,7 @@ def _viewer_snapshot(state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _viewer_link_from_state(state: Dict[str, Any]) -> str:
-    raw = json.dumps(
-        _viewer_snapshot(state), ensure_ascii=False, separators=(",", ":")
-    ).encode("utf-8")
-    payload = base64.urlsafe_b64encode(zlib.compress(raw, 9)).decode("ascii")
-    return VIEWER_BASE_URL + "/#bar=" + payload.rstrip("=")
+    return _viewer_link_from_snapshot(_viewer_snapshot(state))
 
 
 def viewer_link() -> str:
@@ -5481,7 +5807,8 @@ def viewer_link() -> str:
         state = _load()
         return (
             "🔭 这是这家酒馆此刻的只读观察窗：\n%s\n"
-            "链接只携带精简展示状态，不含可恢复的完整存档；经营变化后请重新生成。"
+            "链接只携带精简展示状态，不含可恢复的完整存档；脚本会自动折叠超长"
+            "描述并把网址限制在安全长度内。经营变化后请重新生成。"
             % _viewer_link_from_state(state)
         )
     except Exception as exc:
